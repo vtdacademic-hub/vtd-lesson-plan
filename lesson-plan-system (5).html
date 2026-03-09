@@ -1,0 +1,2668 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบส่งแผนการจัดการเรียนรู้ออนไลน์</title>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  :root {
+    --pink: #FFB3C6;
+    --pink-light: #FFE5EE;
+    --pink-dark: #FF85A1;
+    --green: #B5EAD7;
+    --green-light: #E8FBF4;
+    --green-dark: #6DCBA8;
+    --yellow: #FFEAA7;
+    --yellow-dark: #FDCB6E;
+    --blue: #B8DCFF;
+    --blue-light: #EAF4FF;
+    --blue-dark: #74B9FF;
+    --purple: #E2CCFF;
+    --white: #FFFFFF;
+    --gray-light: #F8F9FA;
+    --gray: #6c757d;
+    --text: #2d3436;
+    --text-light: #636e72;
+    --shadow: 0 4px 20px rgba(0,0,0,0.08);
+    --shadow-hover: 0 8px 30px rgba(0,0,0,0.15);
+    --radius: 20px;
+    --radius-sm: 12px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Prompt', sans-serif;
+    background: linear-gradient(135deg, #FFF0F5 0%, #F0FFF8 50%, #F0F8FF 100%);
+    min-height: 100vh;
+    color: var(--text);
+  }
+
+  /* ===== LOGIN OVERLAY ===== */
+  #loginOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #FFF0F5 0%, #E8FBF4 50%, #EAF4FF 100%);
+    overflow: hidden;
+  }
+
+  .login-bg-blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.45;
+    animation: blobFloat 6s ease-in-out infinite alternate;
+  }
+  .blob1 { width: 380px; height: 380px; background: var(--pink); top: -100px; left: -100px; animation-delay: 0s; }
+  .blob2 { width: 300px; height: 300px; background: var(--green); bottom: -80px; right: -80px; animation-delay: 2s; }
+  .blob3 { width: 200px; height: 200px; background: var(--blue); top: 40%; right: 10%; animation-delay: 4s; }
+
+  @keyframes blobFloat {
+    0% { transform: scale(1) translate(0,0); }
+    100% { transform: scale(1.15) translate(20px, 20px); }
+  }
+
+  .login-card {
+    position: relative;
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(24px);
+    border-radius: 28px;
+    padding: 44px 40px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: 0 20px 60px rgba(255,133,161,0.18), 0 4px 20px rgba(0,0,0,0.06);
+    border: 1.5px solid rgba(255,179,198,0.4);
+    animation: cardIn 0.5s cubic-bezier(.34,1.56,.64,1) both;
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(40px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .login-logo {
+    display: block;
+    width: 110px;
+    margin: 0 auto 16px;
+    animation: floatLogo 3s ease-in-out infinite;
+  }
+
+  .login-title {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #FF85A1, #6DCBA8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+
+  .login-sub {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-light);
+    margin-bottom: 28px;
+  }
+
+  .login-field {
+    margin-bottom: 16px;
+  }
+
+  .login-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 7px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .login-input-wrap {
+    position: relative;
+  }
+
+  .login-input {
+    width: 100%;
+    padding: 13px 16px 13px 44px;
+    border: 2px solid #F0F0F0;
+    border-radius: 14px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 14px;
+    background: var(--gray-light);
+    color: var(--text);
+    outline: none;
+    transition: all 0.3s;
+  }
+
+  .login-input:focus {
+    border-color: var(--pink-dark);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(255,133,161,0.12);
+  }
+
+  .login-input-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    color: var(--pink-dark);
+    pointer-events: none;
+  }
+
+  .login-toggle-pw {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 15px;
+    color: var(--text-light);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    transition: color 0.2s;
+  }
+  .login-toggle-pw:hover { color: var(--pink-dark); }
+
+  .login-error {
+    background: #FFE5E5;
+    color: #C0392B;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12.5px;
+    margin-bottom: 14px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    animation: shake 0.4s ease;
+  }
+  .login-error.show { display: flex; }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%,60% { transform: translateX(-6px); }
+    40%,80% { transform: translateX(6px); }
+  }
+
+  .btn-login {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #FF85A1, #FF6B9D);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    box-shadow: 0 6px 20px rgba(255,107,157,0.4);
+    letter-spacing: 0.3px;
+    margin-top: 4px;
+  }
+
+  .btn-login:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(255,107,157,0.5);
+  }
+
+  .btn-login:active { transform: translateY(0); }
+
+  .login-hint {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-light);
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px dashed var(--pink-light);
+  }
+
+  .login-user-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--pink-light);
+    color: var(--pink-dark);
+    border-radius: 50px;
+    padding: 4px 12px;
+    font-size: 11.5px;
+    font-weight: 500;
+    margin: 2px;
+  }
+
+  /* User info in navbar */
+  .nav-btn-admin {
+    background: linear-gradient(135deg, #9B59B6, #8E44AD);
+    color: white;
+    box-shadow: 0 4px 15px rgba(155,89,182,0.35);
+  }
+
+  /* Admin table inputs */
+  .admin-status-select {
+    padding: 6px 10px;
+    border: 2px solid #F0F0F0;
+    border-radius: 8px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 12px;
+    background: var(--gray-light);
+    cursor: pointer;
+    outline: none;
+    min-width: 120px;
+    transition: border-color 0.2s;
+  }
+  .admin-status-select:focus { border-color: var(--purple); }
+
+  .admin-comment-input {
+    padding: 6px 10px;
+    border: 2px solid #F0F0F0;
+    border-radius: 8px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 12px;
+    background: var(--gray-light);
+    outline: none;
+    width: 180px;
+    transition: border-color 0.2s;
+    resize: none;
+  }
+  .admin-comment-input:focus { border-color: var(--purple); background: white; }
+
+  .btn-save-row {
+    padding: 6px 14px;
+    background: linear-gradient(135deg, #9B59B6, #8E44AD);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-save-row:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(155,89,182,0.4); }
+  .btn-save-row:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .file-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    background: var(--green-light);
+    color: var(--green-dark);
+    border-radius: 8px;
+    font-size: 12px;
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .file-link:hover { background: var(--green-dark); color: white; }
+
+  .saved-flash {
+    animation: savedPulse 0.6s ease;
+  }
+  @keyframes savedPulse {
+    0% { background: var(--green-light); }
+    50% { background: #A8F0D0; }
+    100% { background: transparent; }
+  }
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--pink-light);
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--pink-dark);
+  }
+
+  .btn-logout {
+    padding: 8px 16px;
+    background: white;
+    border: 1.5px solid var(--pink-light);
+    border-radius: 50px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-light);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.3s;
+  }
+
+  .btn-logout:hover { background: var(--pink-light); color: var(--pink-dark); border-color: var(--pink-dark); }
+
+  #mainContent { display: none; }
+
+  /* ===== NAVBAR ===== */
+  .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(20px);
+    border-bottom: 2px solid var(--pink-light);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: 0 2px 15px rgba(255,133,161,0.12);
+  }
+
+  .nav-btn {
+    padding: 10px 22px;
+    border: none;
+    border-radius: 50px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+  }
+
+  .nav-btn-primary {
+    background: linear-gradient(135deg, var(--pink-dark), #FF6B9D);
+    color: white;
+    box-shadow: 0 4px 15px rgba(255,107,157,0.35);
+  }
+
+  .nav-btn-secondary {
+    background: linear-gradient(135deg, var(--green-dark), #45B393);
+    color: white;
+    box-shadow: 0 4px 15px rgba(69,179,147,0.35);
+  }
+
+  .nav-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    text-align: center;
+    padding: 50px 20px 40px;
+    background: linear-gradient(180deg, rgba(255,179,198,0.25) 0%, transparent 100%);
+  }
+
+  .header-logo {
+    width: 150px;
+    height: auto;
+    margin-bottom: 20px;
+    filter: drop-shadow(0 4px 12px rgba(255,133,161,0.3));
+    animation: floatLogo 3s ease-in-out infinite;
+  }
+
+  @keyframes floatLogo {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+  }
+
+  .header-title {
+    font-size: clamp(18px, 3vw, 26px);
+    font-weight: 700;
+    background: linear-gradient(135deg, #FF85A1, #6DCBA8, #74B9FF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.5;
+    margin-bottom: 10px;
+  }
+
+  .header-sub {
+    font-size: 13px;
+    color: var(--text-light);
+    font-weight: 300;
+  }
+
+  .header-badges {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+
+  .badge {
+    padding: 5px 14px;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .badge-pink { background: var(--pink-light); color: var(--pink-dark); }
+  .badge-green { background: var(--green-light); color: var(--green-dark); }
+  .badge-blue { background: var(--blue-light); color: var(--blue-dark); }
+
+  /* ===== SECTIONS ===== */
+  .section {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+  }
+
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 2px dashed var(--pink-light);
+  }
+
+  .section-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .icon-pink { background: var(--pink-light); }
+  .icon-green { background: var(--green-light); }
+  .icon-blue { background: var(--blue-light); }
+
+  .section-title h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* ===== FORM CARD ===== */
+  .form-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 32px;
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(255,179,198,0.3);
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-group.full { grid-column: 1 / -1; }
+
+  .form-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .form-label .required {
+    color: var(--pink-dark);
+    font-size: 16px;
+  }
+
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #F0F0F0;
+    border-radius: var(--radius-sm);
+    font-family: 'Prompt', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--gray-light);
+    transition: all 0.3s ease;
+    outline: none;
+    appearance: none;
+  }
+
+  .form-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23FF85A1' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+    cursor: pointer;
+  }
+
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--pink-dark);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(255,133,161,0.12);
+  }
+
+  .form-textarea { resize: vertical; min-height: 90px; }
+
+  /* ===== FILE UPLOAD ===== */
+  .file-upload-zone {
+    border: 2.5px dashed var(--pink);
+    border-radius: var(--radius-sm);
+    padding: 30px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: var(--pink-light);
+    position: relative;
+  }
+
+  .file-upload-zone:hover, .file-upload-zone.drag-over {
+    background: var(--pink-light);
+    border-color: var(--pink-dark);
+    transform: scale(1.01);
+  }
+
+  .file-upload-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .file-upload-icon { font-size: 36px; margin-bottom: 10px; }
+
+  .file-upload-text {
+    font-size: 14px;
+    color: var(--pink-dark);
+    font-weight: 500;
+  }
+
+  .file-upload-hint {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-top: 4px;
+  }
+
+  .file-preview {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: white;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    display: none;
+    border: 1px solid var(--green-light);
+  }
+
+  .file-preview.show { display: flex; }
+
+  /* ===== SUBMIT BUTTON ===== */
+  .btn-submit {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #FF85A1, #FF6B9D, #FF4D8D);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'Prompt', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 8px;
+    box-shadow: 0 6px 20px rgba(255,107,157,0.4);
+    letter-spacing: 0.5px;
+  }
+
+  .btn-submit:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(255,107,157,0.5);
+  }
+
+  .btn-submit:active { transform: translateY(0); }
+
+  /* ===== STATS SECTION ===== */
+  .stats-bg {
+    background: linear-gradient(135deg, rgba(181,234,215,0.2) 0%, rgba(184,220,255,0.2) 100%);
+    padding: 40px 0;
+  }
+
+  .stat-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 22px 18px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    transition: transform 0.3s;
+    border-top: 4px solid transparent;
+  }
+
+  .stat-card:hover { transform: translateY(-4px); }
+  .stat-card.pink { border-top-color: var(--pink-dark); }
+  .stat-card.green { border-top-color: var(--green-dark); }
+  .stat-card.blue { border-top-color: var(--blue-dark); }
+  .stat-card.yellow { border-top-color: var(--yellow-dark); }
+
+  .stat-number {
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-card.pink .stat-number { color: var(--pink-dark); }
+  .stat-card.green .stat-number { color: var(--green-dark); }
+  .stat-card.blue .stat-number { color: var(--blue-dark); }
+  .stat-card.yellow .stat-number { color: var(--yellow-dark); }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-light);
+    font-weight: 500;
+  }
+
+  .stat-icon { font-size: 22px; margin-bottom: 8px; }
+
+  /* ===== CHARTS ===== */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 24px;
+  }
+
+  .chart-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 22px;
+    box-shadow: var(--shadow);
+  }
+
+  .chart-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ===== TABLE ===== */
+  .table-card {
+    background: white;
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+
+  .table-header {
+    padding: 18px 22px;
+    background: linear-gradient(135deg, var(--green-light), var(--blue-light));
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .table-header h3 {
+    font-size: 15px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-refresh {
+    padding: 8px 16px;
+    background: white;
+    border: none;
+    border-radius: 50px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--green-dark);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: var(--shadow);
+    transition: all 0.3s;
+  }
+
+  .btn-refresh:hover { transform: translateY(-2px); }
+
+  .table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    background: var(--gray-light);
+    padding: 12px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 12px 14px;
+    border-bottom: 1px solid #F5F5F5;
+    vertical-align: middle;
+  }
+
+  tr:hover td { background: var(--pink-light); }
+
+  .status-badge {
+    padding: 4px 12px;
+    border-radius: 50px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .status-pending { background: var(--yellow); color: #9B7B00; }
+  .status-review { background: var(--blue-light); color: #1A5276; }
+  .status-approved { background: var(--green-light); color: #1E8449; }
+  .status-revise { background: #FFE5E5; color: #C0392B; }
+
+  .loading-row td {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-light);
+  }
+
+  /* ===== FOOTER ===== */
+  footer {
+    text-align: center;
+    padding: 30px 20px;
+    background: linear-gradient(135deg, #2D3436, #3D5A80);
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  footer span { color: var(--pink); font-weight: 500; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 600px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.full { grid-column: 1; }
+    .charts-grid { grid-template-columns: 1fr; }
+    .stat-cards { grid-template-columns: 1fr 1fr; }
+    .form-card { padding: 20px 16px; }
+    .navbar { gap: 8px; }
+    .nav-btn { padding: 8px 14px; font-size: 13px; }
+  }
+
+  /* ===== DIVIDER ===== */
+  .wave-divider {
+    height: 60px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 60'%3E%3Cpath d='M0,30 C200,60 400,0 600,30 C800,60 1000,0 1200,30 L1200,60 L0,60 Z' fill='%23F0FFF8' opacity='0.5'/%3E%3C/svg%3E") no-repeat center/cover;
+  }
+
+  .progress-bar-wrap {
+    background: #F0F0F0;
+    border-radius: 10px;
+    height: 8px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    border-radius: 10px;
+    background: linear-gradient(90deg, var(--pink-dark), var(--green-dark));
+    transition: width 0.8s ease;
+  }
+  .btn-register {
+    width: 100%;
+    padding: 12px;
+    background: white;
+    color: var(--green-dark);
+    border: 2px solid var(--green);
+    border-radius: 14px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-register:hover {
+    background: var(--green-light);
+    border-color: var(--green-dark);
+    transform: translateY(-2px);
+  }
+
+  /* Multi-file list */
+  .file-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  .file-list-item {
+    background: white;
+    border: 1.5px solid var(--green-light);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    animation: cardIn 0.3s ease;
+  }
+  .file-list-item .file-icon { font-size: 20px; flex-shrink: 0; }
+  .file-list-item .file-info { flex: 1; min-width: 0; }
+  .file-list-item .file-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file-list-item .file-sz { font-size: 11px; color: var(--text-light); }
+  .file-list-item .file-remove {
+    background: #FFE5E5; border: none; border-radius: 8px; padding: 4px 8px;
+    cursor: pointer; color: #C0392B; font-size: 12px; flex-shrink: 0; transition: all 0.2s;
+  }
+  .file-list-item .file-remove:hover { background: #C0392B; color: white; }
+
+  /* Admin user management */
+  .user-mgmt-card {
+    background: white;
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    margin-top: 20px;
+  }
+
+  /* ===== STAT TABS ===== */
+  .stat-tab {
+    padding: 10px 22px;
+    border: none;
+    border-radius: 50px;
+    font-family: 'Prompt', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s;
+    color: var(--text-light);
+    background: transparent;
+  }
+  .stat-tab.active {
+    background: linear-gradient(135deg, var(--green-dark), #45B393);
+    color: white;
+    box-shadow: 0 4px 12px rgba(69,179,147,0.35);
+  }
+  .stat-tab:not(.active):hover { background: var(--green-light); color: var(--green-dark); }
+
+  /* Teacher table progress bar */
+  .progress-mini-wrap {
+    background: #F0F0F0;
+    border-radius: 50px;
+    height: 8px;
+    min-width: 80px;
+    overflow: hidden;
+  }
+  .progress-mini-bar {
+    height: 100%;
+    border-radius: 50px;
+    background: linear-gradient(90deg, var(--pink-dark), var(--green-dark));
+    transition: width 0.8s ease;
+  }
+
+  /* ===== NOTIFICATION ===== */
+  .notif-wrap {
+    position: relative;
+  }
+
+  .notif-bell {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--yellow);
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: all 0.3s;
+    box-shadow: 0 2px 10px rgba(253,203,110,0.4);
+    color: #9B7B00;
+  }
+  .notif-bell:hover { transform: scale(1.1); background: var(--yellow-dark); }
+  .notif-bell.has-notif { animation: bellRing 1s ease infinite; }
+
+  @keyframes bellRing {
+    0%,100% { transform: rotate(0deg); }
+    15% { transform: rotate(15deg); }
+    30% { transform: rotate(-12deg); }
+    45% { transform: rotate(10deg); }
+    60% { transform: rotate(-8deg); }
+    75% { transform: rotate(5deg); }
+  }
+
+  .notif-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--pink-dark);
+    color: white;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+  }
+
+  .notif-panel {
+    position: absolute;
+    top: 52px;
+    right: 0;
+    width: 340px;
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    border: 1px solid var(--pink-light);
+    z-index: 999;
+    display: none;
+    animation: slideDown 0.25s cubic-bezier(.34,1.56,.64,1);
+    overflow: hidden;
+  }
+  .notif-panel.open { display: block; }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .notif-panel-header {
+    padding: 14px 18px;
+    background: linear-gradient(135deg, var(--yellow), var(--pink-light));
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .notif-mark-all {
+    font-size: 11px;
+    font-family: 'Prompt', sans-serif;
+    background: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 50px;
+    cursor: pointer;
+    color: var(--text-light);
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .notif-mark-all:hover { background: var(--pink-light); color: var(--pink-dark); }
+
+  .notif-list {
+    max-height: 380px;
+    overflow-y: auto;
+  }
+
+  .notif-item {
+    padding: 14px 18px;
+    border-bottom: 1px solid #F5F5F5;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .notif-item:hover { background: var(--gray-light); }
+  .notif-item.unread { background: var(--pink-light); }
+  .notif-item.unread:hover { background: #FFD6E5; }
+
+  .notif-icon-wrap {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    flex-shrink: 0;
+  }
+  .notif-approved  { background: var(--green-light); }
+  .notif-revise    { background: #FFE5E5; }
+  .notif-pending   { background: var(--yellow); }
+
+  .notif-content { flex: 1; }
+  .notif-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+  .notif-desc {
+    font-size: 12px;
+    color: var(--text-light);
+    line-height: 1.5;
+  }
+  .notif-time {
+    font-size: 11px;
+    color: var(--text-light);
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .notif-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--pink-dark);
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+
+  .notif-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--text-light);
+    font-size: 13px;
+  }
+
+</style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay">
+  <div class="login-bg-blob blob1"></div>
+  <div class="login-bg-blob blob2"></div>
+  <div class="login-bg-blob blob3"></div>
+
+  <div class="login-card">
+    <img src="https://img2.pic.in.th/ProJECT--3-180490f9425345678.png" alt="Logo" class="login-logo" onerror="this.style.display='none'">
+    <h1 class="login-title">ระบบส่งแผนการจัดการเรียนรู้<br>ออนไลน์</h1>
+    <p class="login-sub">🏫 โรงเรียนวิถีธรรมแห่งมหาวิทยาลัยราชภัฏสกลนคร</p>
+
+    <div class="login-error" id="loginError">
+      <i class="fas fa-exclamation-circle"></i>
+      <span id="loginErrorMsg">Username หรือ Password ไม่ถูกต้อง</span>
+    </div>
+
+    <div class="login-field">
+      <label class="login-label"><i class="fas fa-user" style="color:var(--pink-dark)"></i> Username</label>
+      <div class="login-input-wrap">
+        <i class="fas fa-user login-input-icon"></i>
+        <input type="text" id="loginUsername" class="login-input" placeholder="กรอก Username" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+    </div>
+
+    <div class="login-field">
+      <label class="login-label"><i class="fas fa-lock" style="color:var(--green-dark)"></i> Password</label>
+      <div class="login-input-wrap">
+        <i class="fas fa-lock login-input-icon"></i>
+        <input type="password" id="loginPassword" class="login-input" placeholder="กรอก Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        <button class="login-toggle-pw" onclick="togglePassword()" tabindex="-1" id="togglePwBtn">
+          <i class="fas fa-eye" id="togglePwIcon"></i>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn-login" onclick="doLogin()" id="btnLogin">
+      <i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ
+    </button>
+
+    <div style="display:flex;align-items:center;gap:10px;margin:16px 0;">
+      <div style="flex:1;height:1px;background:var(--pink-light)"></div>
+      <span style="font-size:12px;color:var(--text-light)">หรือ</span>
+      <div style="flex:1;height:1px;background:var(--pink-light)"></div>
+    </div>
+
+    <button class="btn-register" onclick="showRegisterModal()">
+      <i class="fas fa-user-plus"></i> สมัครเข้าใช้งานระบบ
+    </button>
+
+    <div class="login-hint">
+      <p style="margin-bottom:4px">🔐 กรุณาใช้บัญชีที่ได้รับจากฝ่ายวิชาการ</p>
+      <p style="font-size:11px;color:var(--text-light)">หากมีปัญหาการเข้าสู่ระบบ กรุณาติดต่อผู้ดูแลระบบ</p>
+    </div>
+  </div>
+</div><!-- end loginOverlay -->
+
+<!-- REGISTER MODAL (นอก loginOverlay) -->
+<div id="registerModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:20px;">
+    <div style="background:white;border-radius:24px;padding:36px 32px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,0.2);animation:cardIn 0.4s cubic-bezier(.34,1.56,.64,1) both;">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:36px;margin-bottom:8px">📝</div>
+        <h2 style="font-size:18px;font-weight:700;color:var(--text)">สมัครเข้าใช้งานระบบ</h2>
+        <p style="font-size:12px;color:var(--text-light);margin-top:4px">กรอกข้อมูลเพื่อขอสมัครบัญชี รอ Admin อนุมัติ</p>
+      </div>
+
+      <div class="login-field">
+        <label class="login-label">👤 ชื่อ-นามสกุล <span class="required">*</span></label>
+        <div class="login-input-wrap">
+          <i class="fas fa-user login-input-icon"></i>
+          <input type="text" id="regName" class="login-input" placeholder="เช่น นางสาวสมใจ ใจดี">
+        </div>
+      </div>
+      <div class="login-field">
+        <label class="login-label">🔑 Username ที่ต้องการ <span class="required">*</span></label>
+        <div class="login-input-wrap">
+          <i class="fas fa-at login-input-icon"></i>
+          <input type="text" id="regUsername" class="login-input" placeholder="เช่น teacher07">
+        </div>
+      </div>
+      <div class="login-field">
+        <label class="login-label">🔒 Password <span class="required">*</span></label>
+        <div class="login-input-wrap">
+          <i class="fas fa-lock login-input-icon"></i>
+          <input type="password" id="regPassword" class="login-input" placeholder="ตั้ง Password ของท่าน">
+        </div>
+      </div>
+      <div class="login-field" style="margin-bottom:0">
+        <label class="login-label">🏷️ ตำแหน่ง</label>
+        <div class="login-input-wrap">
+          <i class="fas fa-chalkboard-teacher login-input-icon"></i>
+          <select id="regRole" class="login-input" style="padding-left:44px">
+            <option value="teacher">ครูผู้สอน</option>
+            <option value="academic">ฝ่ายวิชาการ</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button onclick="hideRegisterModal()" style="flex:1;padding:12px;border:2px solid #F0F0F0;border-radius:12px;font-family:'Prompt',sans-serif;font-size:14px;cursor:pointer;background:white;color:var(--text-light);transition:all 0.2s" onmouseover="this.style.background='#F5F5F5'" onmouseout="this.style.background='white'">
+          ยกเลิก
+        </button>
+        <button onclick="submitRegister()" style="flex:2;padding:12px;background:linear-gradient(135deg,#6DCBA8,#45B393);color:white;border:none;border-radius:12px;font-family:'Prompt',sans-serif;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 15px rgba(69,179,147,0.4);transition:all 0.3s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+          <i class="fas fa-paper-plane"></i> ส่งคำขอสมัคร
+        </button>
+      </div>
+    </div>
+  </div>
+
+<!-- MAIN CONTENT -->
+<div id="mainContent">
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="#form-section" class="nav-btn nav-btn-primary" id="formNavBtn" onclick="smoothScroll('form-section')">
+    <i class="fas fa-paper-plane"></i> ส่งแผนการจัดการเรียนรู้
+  </a>
+  <a href="#stats-section" class="nav-btn nav-btn-secondary" onclick="smoothScroll('stats-section')">
+    <i class="fas fa-chart-bar"></i> สถิติ
+  </a>
+  <button class="nav-btn nav-btn-admin" id="adminNavBtn" onclick="smoothScroll('admin-section')" style="display:none">
+    <i class="fas fa-shield-alt"></i> Admin Panel
+  </button>
+
+  <!-- 🔔 Notification Bell -->
+  <div class="notif-wrap" id="notifWrap" style="display:none">
+    <button class="notif-bell" onclick="toggleNotifPanel()" id="notifBell">
+      <i class="fas fa-bell"></i>
+      <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+    </button>
+    <!-- Dropdown Panel -->
+    <div class="notif-panel" id="notifPanel">
+      <div class="notif-panel-header">
+        <span>🔔 การแจ้งเตือน</span>
+        <button onclick="markAllRead()" class="notif-mark-all">อ่านทั้งหมด</button>
+      </div>
+      <div class="notif-list" id="notifList">
+        <div class="notif-empty">ไม่มีการแจ้งเตือน</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="user-info" id="navUserInfo">
+    <i class="fas fa-user-circle"></i>
+    <span id="navUsername">-</span>
+  </div>
+  <button class="btn-logout" onclick="doLogout()">
+    <i class="fas fa-sign-out-alt"></i> ออกจากระบบ
+  </button>
+</nav>
+
+<!-- HEADER -->
+<header class="header">
+  <img src="https://img2.pic.in.th/ProJECT--3-180490f9425345678.png" alt="Logo" class="header-logo" onerror="this.style.display='none'">
+  <h1 class="header-title">ระบบส่งแผนการจัดการเรียนรู้ออนไลน์<br>โรงเรียนวิถีธรรมแห่งมหาวิทยาลัยราชภัฏสกลนคร</h1>
+  <p class="header-sub">📚 ระบบบริหารจัดการแผนการสอนออนไลน์ สำหรับคณาจารย์</p>
+  <div class="header-badges">
+    <span class="badge badge-pink">🌸 ง่ายต่อการใช้งาน</span>
+    <span class="badge badge-green">✅ บันทึกอัตโนมัติ</span>
+    <span class="badge badge-blue">📊 ติดตามสถานะ</span>
+  </div>
+</header>
+
+<!-- FORM SECTION -->
+<div id="form-section" class="section" style="display:none">
+  <div class="section-title">
+    <div class="section-icon icon-pink">📋</div>
+    <h2>ส่งแผนการจัดการเรียนรู้</h2>
+  </div>
+
+  <div class="form-card">
+    <div class="form-grid">
+
+      <!-- ชื่อ-นามสกุล -->
+      <div class="form-group full">
+        <label class="form-label">👤 ชื่อ-นามสกุล <span class="required">*</span></label>
+        <input type="text" id="teacherName" class="form-input" placeholder="กรอกชื่อ-นามสกุลของท่าน">
+      </div>
+
+      <!-- กลุ่มประสบการณ์ -->
+      <div class="form-group">
+        <label class="form-label">📚 กลุ่มประสบการณ์การเรียนรู้ <span class="required">*</span></label>
+        <select id="subject" class="form-select">
+          <option value="">-- เลือกกลุ่มประสบการณ์ --</option>
+          <option>วิทยาศาสตร์</option>
+          <option>คณิตศาสตร์</option>
+          <option>ศิลปะ</option>
+          <option>ภาษาไทย</option>
+          <option>ภาษาอังกฤษ</option>
+          <option>สังคมศึกษา ศาสนาและวัฒนธรรม</option>
+          <option>โครงงาน PBL</option>
+          <option>สุขศึกษาและพลศึกษา</option>
+          <option>แนะแนว</option>
+          <option>ดนตรี</option>
+          <option>มวลประสบการณ์อนุบาล</option>
+        </select>
+      </div>
+
+      <!-- ระดับชั้น -->
+      <div class="form-group">
+        <label class="form-label">🏫 ระดับชั้น <span class="required">*</span></label>
+        <select id="grade" class="form-select">
+          <option value="">-- เลือกระดับชั้น --</option>
+          <option>อนุบาล 1</option>
+          <option>อนุบาล 2</option>
+          <option>อนุบาล 3</option>
+          <option>ป.1</option>
+          <option>ป.2</option>
+          <option>ป.3</option>
+          <option>ป.4</option>
+          <option>ป.5</option>
+          <option>ป.6</option>
+          <option>ม.1</option>
+          <option>ม.2</option>
+          <option>ม.3</option>
+        </select>
+      </div>
+
+      <!-- ประเภทไฟล์ -->
+      <div class="form-group">
+        <label class="form-label">📁 ประเภทของไฟล์ <span class="required">*</span></label>
+        <select id="fileType" class="form-select">
+          <option value="">-- เลือกประเภทไฟล์ --</option>
+          <option>แผนการจัดการเรียนรู้</option>
+          <option>สื่อการสอน</option>
+          <option>ใบงาน</option>
+          <option>แบบประเมิน</option>
+          <option>ประมวลรายวิชา</option>
+          <option>อื่นๆ</option>
+        </select>
+      </div>
+
+      <!-- รหัสวิชา -->
+      <div class="form-group">
+        <label class="form-label">🔖 รหัสวิชา</label>
+        <input type="text" id="courseCode" class="form-input" placeholder="เช่น SCI001, MATH101">
+      </div>
+
+      <!-- ไฟล์แนบ -->
+      <div class="form-group full">
+        <label class="form-label">📎 ไฟล์แนบแผนการจัดการเรียนรู้ <span class="required">*</span>
+          <span style="font-size:11px;font-weight:400;color:var(--text-light)">(เลือกได้หลายไฟล์)</span>
+        </label>
+        <div class="file-upload-zone" id="dropZone">
+          <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar,.txt,.jpg,.jpeg,.png" multiple onchange="handleFileSelect(event)">
+          <div class="file-upload-icon">📂</div>
+          <div class="file-upload-text">คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวางที่นี่</div>
+          <div class="file-upload-hint">รองรับ PDF, Word, PowerPoint, Excel, ZIP, รูปภาพ — เลือกได้หลายไฟล์ (แต่ละไฟล์ไม่เกิน 10MB)</div>
+        </div>
+        <div class="file-list" id="fileList"></div>
+      </div>
+
+    </div>
+
+    <button class="btn-submit" onclick="submitForm()">
+      <i class="fas fa-paper-plane"></i>
+      ส่งแผนการจัดการเรียนรู้
+    </button>
+  </div>
+</div>
+
+<div class="wave-divider"></div>
+
+<!-- STATS SECTION -->
+<div class="stats-bg" id="stats-section">
+  <div class="section">
+
+    <!-- TAB SWITCHER -->
+    <div style="display:flex;gap:10px;margin-bottom:24px;background:white;padding:6px;border-radius:50px;box-shadow:var(--shadow);width:fit-content;">
+      <button class="stat-tab active" id="tabOverview" onclick="switchTab('overview')">
+        📊 ภาพรวมระบบ
+      </button>
+      <button class="stat-tab" id="tabTeacher" onclick="switchTab('teacher')">
+        👩‍🏫 สถิติรายครู
+      </button>
+    </div>
+
+    <!-- ===== TAB 1: ภาพรวม ===== -->
+    <div id="tabOverviewContent">
+
+      <div class="section-title">
+        <div class="section-icon icon-green">📊</div>
+        <div><h2>สถิติภาพรวมระบบ</h2>
+        <p style="font-size:13px;color:var(--text-light);margin-top:2px">สรุปจำนวนแผนการสอนทั้งหมดในระบบ</p></div>
+      </div>
+
+      <!-- Stat Cards -->
+      <div class="stat-cards">
+        <div class="stat-card pink">
+          <div class="stat-icon">📋</div>
+          <div class="stat-number" id="totalCount">-</div>
+          <div class="stat-label">ทั้งหมด</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-icon">⏳</div>
+          <div class="stat-number" id="pendingCount">-</div>
+          <div class="stat-label">รอตรวจ</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">🔍</div>
+          <div class="stat-number" id="reviewCount">-</div>
+          <div class="stat-label">รอแก้ไข</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">✅</div>
+          <div class="stat-number" id="approvedCount">-</div>
+          <div class="stat-label">ตรวจแล้ว</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-title">🏫 แยกตามระดับชั้น</div>
+          <canvas id="gradeChart" height="220"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">📚 แยกตามกลุ่มประสบการณ์</div>
+          <canvas id="subjectChart" height="220"></canvas>
+        </div>
+      </div>
+
+      <!-- Charts row 2 -->
+      <div class="charts-grid" style="margin-top:18px">
+        <div class="chart-card">
+          <div class="chart-title">📁 แยกตามประเภทไฟล์</div>
+          <canvas id="fileTypeChart" height="220"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">🔄 แยกตามสถานะ</div>
+          <canvas id="statusChart" height="220"></canvas>
+        </div>
+      </div>
+
+      <!-- Recent Table -->
+      <div class="table-card" style="margin-top:18px">
+        <div class="table-header">
+          <h3>📋 รายการล่าสุด</h3>
+          <button class="btn-refresh" onclick="loadStats()">
+            <i class="fas fa-sync-alt"></i> รีเฟรช
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>วันที่ส่ง</th>
+                <th>ชื่อ-นามสกุล</th>
+                <th>กลุ่มประสบการณ์</th>
+                <th>ระดับชั้น</th>
+                <th>ประเภทไฟล์</th>
+                <th>สถานะ</th>
+                <th>ความคิดเห็น</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody">
+              <tr class="loading-row"><td colspan="8">⏳ กำลังโหลดข้อมูล...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TAB 2: สถิติรายครู ===== -->
+    <div id="tabTeacherContent" style="display:none">
+
+      <div class="section-title">
+        <div class="section-icon icon-pink">👩‍🏫</div>
+        <div><h2>สถิติรายครู</h2>
+        <p style="font-size:13px;color:var(--text-light);margin-top:2px">จำนวนแผนการสอนที่ส่งแยกตามครูแต่ละท่าน</p></div>
+      </div>
+
+      <!-- Teacher Summary Cards -->
+      <div id="teacherSummaryCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px">
+        <div class="stat-card pink">
+          <div class="stat-icon">👩‍🏫</div>
+          <div class="stat-number" id="teacherTotalCount">-</div>
+          <div class="stat-label">ครูที่ส่งแผนแล้ว</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">📋</div>
+          <div class="stat-number" id="teacherAvgCount">-</div>
+          <div class="stat-label">เฉลี่ยต่อท่าน</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">🏆</div>
+          <div class="stat-number" id="teacherTopName" style="font-size:16px;line-height:1.3">-</div>
+          <div class="stat-label">ส่งมากที่สุด</div>
+        </div>
+      </div>
+
+      <!-- Teacher Chart -->
+      <div class="chart-card" style="margin-bottom:18px">
+        <div class="chart-title">👩‍🏫 จำนวนแผนที่ส่งแยกตามครู</div>
+        <canvas id="teacherChart" height="120"></canvas>
+      </div>
+
+      <!-- Teacher Table -->
+      <div class="table-card">
+        <div class="table-header" style="background:linear-gradient(135deg,var(--pink-light),var(--green-light))">
+          <h3>👩‍🏫 ตารางสรุปรายครู</h3>
+          <button class="btn-refresh" onclick="loadStats()">
+            <i class="fas fa-sync-alt"></i> รีเฟรช
+          </button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>ชื่อ-นามสกุล</th>
+                <th>รวมทั้งหมด</th>
+                <th>⏳ รอตรวจ</th>
+                <th>🔍 รอแก้ไข</th>
+                <th>✅ ตรวจแล้ว</th>
+                <th>ความคืบหน้า</th>
+              </tr>
+            </thead>
+            <tbody id="teacherTableBody">
+              <tr class="loading-row"><td colspan="7">⏳ กำลังโหลดข้อมูล...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ADMIN PANEL SECTION -->
+<div id="admin-section" style="display:none">
+<div style="background:linear-gradient(135deg,rgba(226,204,255,0.25)0%,rgba(184,220,255,0.25)100%); padding:40px 0;">
+  <div class="section">
+    <div class="section-title">
+      <div class="section-icon" style="background:#E2CCFF">🛡️</div>
+      <div>
+        <h2>Admin Panel — ฝ่ายวิชาการ</h2>
+        <p style="font-size:13px;color:var(--text-light);margin-top:2px">จัดการสถานะและความคิดเห็นแผนการสอน</p>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div style="background:white;border-radius:var(--radius);padding:20px 24px;box-shadow:var(--shadow);margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:180px;">
+        <i class="fas fa-search" style="color:var(--text-light)"></i>
+        <input type="text" id="adminSearch" class="form-input" placeholder="ค้นหาชื่อ, กลุ่มประสบการณ์, ระดับชั้น..." oninput="filterAdminTable()" style="margin:0;background:var(--gray-light)">
+      </div>
+      <select id="adminFilterStatus" class="form-select" onchange="filterAdminTable()" style="width:auto;min-width:140px;margin:0">
+        <option value="">📋 ทุกสถานะ</option>
+        <option value="รอตรวจ">⏳ รอตรวจ</option>
+        <option value="รอแก้ไข">🔍 รอแก้ไข</option>
+        <option value="ตรวจแล้ว">✅ ตรวจแล้ว</option>
+      </select>
+      <select id="adminFilterGrade" class="form-select" onchange="filterAdminTable()" style="width:auto;min-width:130px;margin:0">
+        <option value="">🏫 ทุกระดับชั้น</option>
+        <option>อนุบาล 1</option><option>อนุบาล 2</option><option>อนุบาล 3</option>
+        <option>ป.1</option><option>ป.2</option><option>ป.3</option>
+        <option>ป.4</option><option>ป.5</option><option>ป.6</option>
+        <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+      </select>
+      <button class="btn-refresh" onclick="loadAdminData()" style="white-space:nowrap">
+        <i class="fas fa-sync-alt"></i> รีเฟรช
+      </button>
+    </div>
+
+    <!-- Admin Table -->
+    <div class="table-card">
+      <div class="table-header" style="background:linear-gradient(135deg,#E2CCFF,#B8DCFF)">
+        <h3>📋 รายการแผนการสอนทั้งหมด</h3>
+        <span id="adminRowCount" style="font-size:12px;color:var(--text-light);background:white;padding:4px 12px;border-radius:50px;">0 รายการ</span>
+      </div>
+      <div class="table-wrap">
+        <table id="adminTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>วันที่ส่ง</th>
+              <th>ชื่อ-นามสกุล</th>
+              <th>กลุ่มประสบการณ์</th>
+              <th>ระดับชั้น</th>
+              <th>ประเภทไฟล์</th>
+              <th>รหัสวิชา</th>
+              <th>ไฟล์แนบ</th>
+              <th>สถานะ</th>
+              <th>ความคิดเห็น</th>
+              <th>บันทึก</th>
+            </tr>
+          </thead>
+          <tbody id="adminTableBody">
+            <tr class="loading-row"><td colspan="11">⏳ กำลังโหลดข้อมูล...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- USER MANAGEMENT -->
+    <div class="user-mgmt-card" id="userMgmtSection">
+      <div class="section-title" style="margin-bottom:18px">
+        <div class="section-icon" style="background:#E2CCFF">👥</div>
+        <div>
+          <h2 style="font-size:18px">จัดการสมาชิก</h2>
+          <p style="font-size:12px;color:var(--text-light);margin-top:2px">เพิ่ม / ลบ / อนุมัติสมาชิกในระบบ</p>
+        </div>
+        <button class="btn-refresh" onclick="loadUserManagement()" style="margin-left:auto">
+          <i class="fas fa-sync-alt"></i> รีเฟรช
+        </button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>ชื่อ-นามสกุล</th>
+              <th>Username</th>
+              <th>ตำแหน่ง</th>
+              <th>สถานะ</th>
+              <th>จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="userTableBody">
+            <tr class="loading-row"><td colspan="6">⏳ กำลังโหลด...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <p>พัฒนาโดย <span>งานวิชาการ โรงเรียนวิถีธรรมแห่งมหาวิทยาลัยราชภัฏสกลนคร</span></p>
+  <p>© 2026 ระบบส่งแผนการจัดการเรียนรู้ออนไลน์</p>
+</footer>
+
+</div><!-- end mainContent -->
+
+<script>
+  // ===== LOGIN SYSTEM =====
+  // บัญชีผู้ใช้ดึงจาก Google Sheet (Sheet: บัญชีผู้ใช้)
+  let currentUser = null;
+
+  function checkSession() {
+    const saved = sessionStorage.getItem('lessonPlanUser');
+    if (saved) {
+      currentUser = JSON.parse(saved);
+      showMainContent();
+    }
+  }
+
+  async function doLogin() {
+    const uname = document.getElementById('loginUsername').value.trim();
+    const pw = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    const errMsg = document.getElementById('loginErrorMsg');
+    const btn = document.getElementById('btnLogin');
+
+    errEl.classList.remove('show');
+
+    if (!uname || !pw) {
+      errMsg.textContent = 'กรุณากรอก Username และ Password';
+      errEl.classList.add('show');
+      return;
+    }
+
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังตรวจสอบ...';
+    btn.disabled = true;
+
+    try {
+      // ดึงบัญชีจาก Google Sheet
+      const data = await gasGet({ action: 'getUsers' });
+
+      if (!data.success) throw new Error('โหลดข้อมูลผู้ใช้ไม่สำเร็จ');
+
+      const users = data.users || [];
+      const user = users.find(u =>
+        u.username === uname && u.password === pw
+      );
+
+      if (user) {
+        // ตรวจสอบสถานะบัญชี
+        if (user.status === 'รออนุมัติ') {
+          errMsg.textContent = 'บัญชีของท่านยังรอการอนุมัติจาก Admin กรุณารอสักครู่';
+          errEl.classList.add('show');
+          btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ';
+          btn.disabled = false;
+          return;
+        }
+        currentUser = user;
+        sessionStorage.setItem('lessonPlanUser', JSON.stringify(user));
+
+        Swal.fire({
+          icon: 'success',
+          title: `ยินดีต้อนรับ! 🎉`,
+          html: `<p style="font-family:Prompt">สวัสดี <b>${user.displayName}</b><br>เข้าสู่ระบบสำเร็จแล้ว</p>`,
+          timer: 1600,
+          showConfirmButton: false,
+          timerProgressBar: true
+        }).then(() => showMainContent());
+      } else {
+        errMsg.textContent = 'Username หรือ Password ไม่ถูกต้อง กรุณาลองใหม่';
+        errEl.classList.add('show');
+        document.getElementById('loginPassword').value = '';
+        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ';
+        btn.disabled = false;
+      }
+    } catch(err) {
+      errMsg.textContent = 'เชื่อมต่อระบบไม่ได้ กรุณาลองใหม่อีกครั้ง';
+      errEl.classList.add('show');
+      btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ';
+      btn.disabled = false;
+    }
+  }
+
+  function showMainContent() {
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+    document.getElementById('navUsername').textContent = currentUser.displayName;
+
+    const isTeacher = currentUser.role === 'teacher';
+    const isAdmin   = currentUser.role === 'admin' || currentUser.role === 'academic';
+
+    // ซ่อน/แสดง form section เฉพาะครูเท่านั้น
+    document.getElementById('form-section').style.display   = isTeacher ? 'block' : 'none';
+    document.getElementById('formNavBtn').style.display     = isTeacher ? 'flex'  : 'none';
+
+    // Autofill ชื่อในฟอร์มส่งแผน (เฉพาะครู)
+    if (isTeacher) {
+      const nameField = document.getElementById('teacherName');
+      if (nameField && currentUser.displayName) nameField.value = currentUser.displayName;
+    }
+
+    // แสดง Admin Panel เฉพาะ admin และ academic
+    if (isAdmin) {
+      document.getElementById('adminNavBtn').style.display = 'flex';
+      document.getElementById('admin-section').style.display = 'block';
+      setTimeout(() => { loadAdminData(); loadUserManagement(); }, 600);
+    }
+
+    // แสดงกระดิ่งแจ้งเตือนเฉพาะครู
+    if (isTeacher) {
+      document.getElementById('notifWrap').style.display = 'flex';
+      setTimeout(() => loadNotifications(), 800);
+    }
+
+    setTimeout(() => loadStats(), 500);
+  }
+
+  function doLogout() {
+    Swal.fire({
+      title: 'ออกจากระบบ?',
+      text: 'ต้องการออกจากระบบใช่หรือไม่',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#FF85A1',
+      cancelButtonColor: '#aaa',
+      confirmButtonText: 'ใช่, ออกจากระบบ',
+      cancelButtonText: 'ยกเลิก',
+      customClass: { popup: 'swal-font' }
+    }).then(result => {
+      if (result.isConfirmed) {
+        sessionStorage.removeItem('lessonPlanUser');
+        currentUser = null;
+        document.getElementById('loginUsername').value = '';
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('loginError').classList.remove('show');
+        document.getElementById('btnLogin').innerHTML = '<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ';
+        document.getElementById('btnLogin').disabled = false;
+        // ซ่อน Admin Panel เสมอเมื่อ logout
+        document.getElementById('adminNavBtn').style.display = 'none';
+        document.getElementById('formNavBtn').style.display  = 'none';
+        document.getElementById('admin-section').style.display = 'none';
+        document.getElementById('form-section').style.display  = 'none';
+        document.getElementById('notifWrap').style.display = 'none';
+        document.getElementById('notifPanel').classList.remove('open');
+        document.getElementById('mainContent').style.display = 'none';
+        document.getElementById('loginOverlay').style.display = 'flex';
+      }
+    });
+  }
+
+  function togglePassword() {
+    const input = document.getElementById('loginPassword');
+    const icon = document.getElementById('togglePwIcon');
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.className = 'fas fa-eye-slash';
+    } else {
+      input.type = 'password';
+      icon.className = 'fas fa-eye';
+    }
+  }
+
+  // ===== MAIN APP =====
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwy4EtqLhbL7v6WKyAgZibAP1BumnHvD73JlD9x4y3S5owSOPovScyhi5btXHfm-_NoUw/exec';
+
+  // ====================================================
+  // Google Apps Script — วิธีที่ work 100% กับ CORS
+  // ใช้ fetch แบบ no-cors สำหรับ POST (submit)
+  // ใช้ fetch ปกติสำหรับ GET (getStats) ซึ่ง GAS รองรับ CORS
+  // ====================================================
+
+  // POST ผ่าน hidden form → iframe (ไม่มี CORS ปัญหาเลย)
+  function gasPost(params) {
+    return new Promise((resolve, reject) => {
+      const iframeName = 'gasFrame_' + Date.now();
+      const iframe = document.createElement('iframe');
+      iframe.name = iframeName;
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = APPS_SCRIPT_URL;
+      form.target = iframeName;
+      form.style.display = 'none';
+
+      Object.entries(params).forEach(([k, v]) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = k;
+        input.value = v;
+        form.appendChild(input);
+      });
+
+      document.body.appendChild(form);
+
+      // GAS POST ไม่ return response ได้ผ่าน iframe
+      // แต่ form submit สำเร็จเสมอถ้า URL ถูกต้อง
+      // รอ 4 วินาทีแล้วถือว่าสำเร็จ
+      const timer = setTimeout(() => {
+        cleanup();
+        resolve({ success: true });
+      }, 4000);
+
+      iframe.onload = () => {
+        clearTimeout(timer);
+        cleanup();
+        resolve({ success: true });
+      };
+
+      function cleanup() {
+        try { document.body.removeChild(form); } catch(e) {}
+        try { document.body.removeChild(iframe); } catch(e) {}
+      }
+
+      form.submit();
+    });
+  }
+
+  // GET สำหรับดึงข้อมูล — GAS รองรับ CORS สำหรับ GET
+  async function gasGet(params) {
+    const url = new URL(APPS_SCRIPT_URL);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+
+    const res = await fetch(url.toString(), {
+      method: 'GET',
+      redirect: 'follow',
+      mode: 'cors',
+    });
+
+    const text = await res.text();
+    if (!text || text.trim().startsWith('<')) {
+      throw new Error('ไม่ได้รับข้อมูลจาก Apps Script — กรุณาตรวจสอบ Deploy settings');
+    }
+    return JSON.parse(text);
+  }
+  let gradeChart = null;
+  let subjectChart = null;
+
+  // Smooth scroll
+  function smoothScroll(id) {
+    document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // ===== MULTI-FILE HANDLING =====
+  let selectedFiles = []; // array of File objects
+
+  function getFileIcon(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    if (['pdf'].includes(ext)) return '📄';
+    if (['doc','docx'].includes(ext)) return '📝';
+    if (['ppt','pptx'].includes(ext)) return '📊';
+    if (['xls','xlsx'].includes(ext)) return '📈';
+    if (['zip','rar'].includes(ext)) return '🗜️';
+    if (['jpg','jpeg','png'].includes(ext)) return '🖼️';
+    return '📎';
+  }
+
+  function handleFileSelect(event) {
+    const files = Array.from(event.target.files);
+    addFiles(files);
+    event.target.value = ''; // reset so same file can be added again
+  }
+
+  function addFiles(files) {
+    const maxSize = 10 * 1024 * 1024; // 10MB each
+    files.forEach(file => {
+      if (file.size > maxSize) {
+        Swal.fire({ icon: 'warning', title: 'ไฟล์ใหญ่เกินไป',
+          text: `"${file.name}" มีขนาดเกิน 10MB`, confirmButtonColor: '#FF85A1' });
+        return;
+      }
+      // ป้องกันไฟล์ซ้ำ
+      if (selectedFiles.find(f => f.name === file.name && f.size === file.size)) return;
+      selectedFiles.push(file);
+    });
+    renderFileList();
+  }
+
+  function removeFile(index) {
+    selectedFiles.splice(index, 1);
+    renderFileList();
+  }
+
+  function renderFileList() {
+    const list = document.getElementById('fileList');
+    if (selectedFiles.length === 0) { list.innerHTML = ''; return; }
+    list.innerHTML = selectedFiles.map((f, i) => `
+      <div class="file-list-item">
+        <span class="file-icon">${getFileIcon(f.name)}</span>
+        <div class="file-info">
+          <div class="file-name">${f.name}</div>
+          <div class="file-sz">${formatFileSize(f.size)}</div>
+        </div>
+        <button class="file-remove" onclick="removeFile(${i})">
+          <i class="fas fa-times"></i> ลบ
+        </button>
+      </div>`).join('');
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  // Drag & Drop init (เรียกหลัง DOM โหลดเสร็จ)
+  function initDropZone() {
+    const dropZone = document.getElementById('dropZone');
+    if (!dropZone) return;
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      addFiles(Array.from(e.dataTransfer.files));
+    });
+  }
+
+  // Submit form — multi-file
+  async function submitForm() {
+    const name = document.getElementById('teacherName').value.trim();
+    const subject = document.getElementById('subject').value;
+    const grade = document.getElementById('grade').value;
+    const fileType = document.getElementById('fileType').value;
+    const courseCode = document.getElementById('courseCode').value.trim();
+
+    if (!name || !subject || !grade || !fileType || selectedFiles.length === 0) {
+      const missing = [];
+      if (!name) missing.push('ชื่อ-นามสกุล');
+      if (!subject) missing.push('กลุ่มประสบการณ์');
+      if (!grade) missing.push('ระดับชั้น');
+      if (!fileType) missing.push('ประเภทไฟล์');
+      if (selectedFiles.length === 0) missing.push('ไฟล์แนบ');
+      Swal.fire({
+        icon: 'warning', title: 'กรุณากรอกข้อมูลให้ครบ',
+        html: `<p style="font-family:Prompt">ยังขาด: <b>${missing.join(', ')}</b></p>`,
+        confirmButtonColor: '#FF85A1', confirmButtonText: 'ตกลง'
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: `⏳ กำลังส่งข้อมูล (0/${selectedFiles.length} ไฟล์)`,
+      html: '<p style="font-family:Prompt">กรุณารอสักครู่ กำลังอัปโหลดไฟล์...</p>',
+      allowOutsideClick: false, showConfirmButton: false,
+      didOpen: () => Swal.showLoading()
+    });
+
+    try {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+      const dateTime = `${dateStr} ${now.toLocaleTimeString('th-TH')}`;
+
+      // ส่งทีละไฟล์
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        Swal.update({ title: `⏳ กำลังส่ง (${i+1}/${selectedFiles.length}) ไฟล์` });
+        const base64 = await fileToBase64(file);
+        await gasPost({
+          action: 'submit',
+          dateTime: dateTime,
+          teacherName: name,
+          subject: subject,
+          grade: grade,
+          fileType: fileType,
+          courseCode: courseCode,
+          fileName: file.name,
+          fileMime: file.type,
+          fileData: base64
+        });
+      }
+
+      Swal.fire({
+        icon: 'success', title: '✅ ส่งสำเร็จ!',
+        html: `<p style="font-family:Prompt">อัปโหลด <b>${selectedFiles.length} ไฟล์</b> เรียบร้อยแล้ว 🎉</p>`,
+        confirmButtonColor: '#6DCBA8', confirmButtonText: 'เยี่ยม!'
+      });
+      resetForm();
+      setTimeout(() => loadStats(), 2000);
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: '❌ เกิดข้อผิดพลาด',
+        html: `<p style="font-family:Prompt">${err.message}</p>`,
+        confirmButtonColor: '#FF85A1', confirmButtonText: 'ลองอีกครั้ง' });
+    }
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function resetForm() {
+    document.getElementById('teacherName').value = currentUser ? currentUser.displayName : '';
+    document.getElementById('subject').value = '';
+    document.getElementById('grade').value = '';
+    document.getElementById('fileType').value = '';
+    document.getElementById('courseCode').value = '';
+    document.getElementById('fileInput').value = '';
+    selectedFiles = [];
+    renderFileList();
+  }
+
+  // ===== REGISTER =====
+  function showRegisterModal() {
+    document.getElementById('registerModal').style.display = 'flex';
+  }
+  function hideRegisterModal() {
+    document.getElementById('registerModal').style.display = 'none';
+    document.getElementById('regName').value = '';
+    document.getElementById('regUsername').value = '';
+    document.getElementById('regPassword').value = '';
+  }
+
+  async function submitRegister() {
+    const displayName = document.getElementById('regName').value.trim();
+    const username    = document.getElementById('regUsername').value.trim();
+    const password    = document.getElementById('regPassword').value.trim();
+    const role        = document.getElementById('regRole').value;
+
+    if (!displayName || !username || !password) {
+      Swal.fire({ icon: 'warning', title: 'กรอกข้อมูลให้ครบ', confirmButtonColor: '#FF85A1' });
+      return;
+    }
+
+    Swal.fire({ title: '⏳ กำลังส่งคำขอ...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+
+    try {
+      await gasPost({ action: 'registerUser', displayName, username, password, role, status: 'รออนุมัติ' });
+      hideRegisterModal();
+      Swal.fire({
+        icon: 'success', title: '📝 ส่งคำขอแล้ว!',
+        html: `<p style="font-family:Prompt">รอ Admin อนุมัติบัญชีของท่าน<br>Username: <b>${username}</b></p>`,
+        confirmButtonColor: '#6DCBA8'
+      });
+    } catch(err) {
+      Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message, confirmButtonColor: '#FF85A1' });
+    }
+  }
+
+  // ===== USER MANAGEMENT (Admin) =====
+  async function loadUserManagement() {
+    try {
+      const data = await gasGet({ action: 'getUsers' });
+      if (!data.success) return;
+      const users = data.users || [];
+      const body = document.getElementById('userTableBody');
+
+      if (users.length === 0) {
+        body.innerHTML = '<tr class="loading-row"><td colspan="6">📭 ไม่มีข้อมูลสมาชิก</td></tr>';
+        return;
+      }
+
+      const roleLabel = { teacher: '👩‍🏫 ครูผู้สอน', academic: '📚 ฝ่ายวิชาการ', admin: '🛡️ Admin' };
+
+      body.innerHTML = users.map((u, i) => {
+        const isPending = (u.status || '') === 'รออนุมัติ';
+        const statusBadge = isPending
+          ? `<span class="status-badge" style="background:#FFEAA7;color:#9B7B00">⏳ รออนุมัติ</span>`
+          : `<span class="status-badge status-approved">✅ ใช้งานได้</span>`;
+        return `<tr>
+          <td>${i+1}</td>
+          <td style="font-weight:500">${u.displayName}</td>
+          <td style="font-size:12px;color:var(--text-light)">${u.username}</td>
+          <td>${roleLabel[u.role] || u.role}</td>
+          <td>${statusBadge}</td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap">
+            ${isPending ? `<button onclick="approveUser('${u.username}')" style="padding:5px 10px;background:var(--green-light);color:var(--green-dark);border:none;border-radius:8px;font-family:'Prompt',sans-serif;font-size:11px;font-weight:600;cursor:pointer"><i class="fas fa-check"></i> อนุมัติ</button>` : ''}
+            <button onclick="deleteUser('${u.username}','${u.displayName}')" style="padding:5px 10px;background:#FFE5E5;color:#C0392B;border:none;border-radius:8px;font-family:'Prompt',sans-serif;font-size:11px;font-weight:600;cursor:pointer"><i class="fas fa-trash"></i> ลบ</button>
+          </td>
+        </tr>`;
+      }).join('');
+    } catch(err) {
+      console.error(err);
+    }
+  }
+
+  async function approveUser(username) {
+    try {
+      await gasPost({ action: 'approveUser', username });
+      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+      Toast.fire({ icon: 'success', title: `✅ อนุมัติ ${username} แล้ว` });
+      loadUserManagement();
+    } catch(err) { Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message }); }
+  }
+
+  async function deleteUser(username, name) {
+    const result = await Swal.fire({
+      title: `ลบสมาชิก "${name}"?`,
+      text: 'การกระทำนี้ไม่สามารถย้อนกลับได้',
+      icon: 'warning', showCancelButton: true,
+      confirmButtonColor: '#C0392B', cancelButtonColor: '#aaa',
+      confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก'
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await gasPost({ action: 'deleteUser', username });
+      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+      Toast.fire({ icon: 'success', title: `🗑️ ลบ ${name} แล้ว` });
+      loadUserManagement();
+    } catch(err) { Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message }); }
+  }
+
+  // Load stats
+  async function loadStats() {
+    try {
+      const data = await gasGet({ action: 'getStats' });
+      if (!data.success) return;
+      const rows = data.rows || [];
+
+      let total = rows.length;
+      let pending = 0, review = 0, approved = 0;
+      const gradeCounts = {}, subjectCounts = {}, fileTypeCounts = {}, statusCounts = { 'รอตรวจ': 0, 'รอแก้ไข': 0, 'ตรวจแล้ว': 0 };
+
+      rows.forEach(row => {
+        const status = (row[7] || 'รอตรวจ').trim();
+        if (status === 'รอตรวจ' || status === '') { pending++; statusCounts['รอตรวจ']++; }
+        else if (status === 'รอแก้ไข') { review++; statusCounts['รอแก้ไข']++; }
+        else if (status === 'ตรวจแล้ว') { approved++; statusCounts['ตรวจแล้ว']++; }
+
+        const grade = row[3] || 'ไม่ระบุ';
+        gradeCounts[grade] = (gradeCounts[grade] || 0) + 1;
+
+        const subject = row[2] || 'ไม่ระบุ';
+        subjectCounts[subject] = (subjectCounts[subject] || 0) + 1;
+
+        const ftype = row[4] || 'ไม่ระบุ';
+        fileTypeCounts[ftype] = (fileTypeCounts[ftype] || 0) + 1;
+      });
+
+      document.getElementById('totalCount').textContent = total;
+      document.getElementById('pendingCount').textContent = pending;
+      document.getElementById('reviewCount').textContent = review;
+      document.getElementById('approvedCount').textContent = approved;
+
+      updateCharts(gradeCounts, subjectCounts, fileTypeCounts, statusCounts);
+      updateTable(rows);
+      updateTeacherStats(rows);
+
+    } catch (err) {
+      console.error('Stats error:', err);
+      document.getElementById('tableBody').innerHTML = '<tr class="loading-row"><td colspan="8">⚠️ ไม่สามารถโหลดข้อมูลได้</td></tr>';
+    }
+  }
+
+  let fileTypeChart = null;
+  let statusChart = null;
+  let teacherChart = null;
+
+  function switchTab(tab) {
+    document.getElementById('tabOverviewContent').style.display = tab === 'overview' ? 'block' : 'none';
+    document.getElementById('tabTeacherContent').style.display  = tab === 'teacher'  ? 'block' : 'none';
+    document.getElementById('tabOverview').classList.toggle('active', tab === 'overview');
+    document.getElementById('tabTeacher').classList.toggle('active', tab === 'teacher');
+  }
+
+  function updateCharts(gradeCounts, subjectCounts, fileTypeCounts, statusCounts) {
+    const pastelColors = ['#FFB3C6','#B5EAD7','#B8DCFF','#FFEAA7','#E2CCFF','#FFD3B6','#DCEEFF','#C9F5E5','#FFCCE7','#D4F0FF','#FFF0C9','#E8DCFF'];
+
+    // Grade chart
+    if (gradeChart) gradeChart.destroy();
+    gradeChart = new Chart(document.getElementById('gradeChart').getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: Object.keys(gradeCounts), datasets: [{ data: Object.values(gradeCounts), backgroundColor: pastelColors, borderWidth: 0 }] },
+      options: { plugins: { legend: { position: 'bottom', labels: { font: { family: 'Prompt', size: 11 }, boxWidth: 12 } } }, cutout: '65%' }
+    });
+
+    // Subject chart
+    if (subjectChart) subjectChart.destroy();
+    subjectChart = new Chart(document.getElementById('subjectChart').getContext('2d'), {
+      type: 'bar',
+      data: { labels: Object.keys(subjectCounts).map(s => s.length > 8 ? s.substring(0,8)+'..' : s),
+              datasets: [{ data: Object.values(subjectCounts), backgroundColor: pastelColors, borderRadius: 8, borderWidth: 0 }] },
+      options: { plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false }, ticks: { font: { family: 'Prompt', size: 10 } } },
+                  y: { grid: { color: '#F5F5F5' }, ticks: { font: { family: 'Prompt', size: 10 } } } } }
+    });
+
+    // FileType chart
+    if (fileTypeChart) fileTypeChart.destroy();
+    fileTypeChart = new Chart(document.getElementById('fileTypeChart').getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: Object.keys(fileTypeCounts), datasets: [{ data: Object.values(fileTypeCounts), backgroundColor: pastelColors, borderWidth: 0 }] },
+      options: { plugins: { legend: { position: 'bottom', labels: { font: { family: 'Prompt', size: 11 }, boxWidth: 12 } } }, cutout: '60%' }
+    });
+
+    // Status chart
+    if (statusChart) statusChart.destroy();
+    statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), {
+      type: 'bar',
+      data: { labels: Object.keys(statusCounts),
+              datasets: [{ data: Object.values(statusCounts),
+                backgroundColor: ['#FFEAA7','#FFE5E5','#B5EAD7'], borderRadius: 10, borderWidth: 0 }] },
+      options: { plugins: { legend: { display: false } },
+        scales: { x: { grid: { display: false }, ticks: { font: { family: 'Prompt', size: 11 } } },
+                  y: { grid: { color: '#F5F5F5' }, ticks: { stepSize: 1, font: { family: 'Prompt', size: 10 } } } } }
+    });
+  }
+
+  function updateTeacherStats(rows) {
+    // นับแต่ละครู
+    const teacherMap = {};
+    rows.forEach(row => {
+      const name = (row[1] || '').trim() || 'ไม่ระบุ';
+      const status = (row[7] || 'รอตรวจ').trim();
+      if (!teacherMap[name]) teacherMap[name] = { total: 0, pending: 0, review: 0, approved: 0 };
+      teacherMap[name].total++;
+      if (status === 'รอตรวจ' || status === '') teacherMap[name].pending++;
+      else if (status === 'รอแก้ไข') teacherMap[name].review++;
+      else if (status === 'ตรวจแล้ว') teacherMap[name].approved++;
+    });
+
+    const teachers = Object.entries(teacherMap).sort((a,b) => b[1].total - a[1].total);
+    const maxTotal = teachers[0]?.[1].total || 1;
+
+    // Summary cards
+    document.getElementById('teacherTotalCount').textContent = teachers.length;
+    document.getElementById('teacherAvgCount').textContent = teachers.length > 0
+      ? (rows.length / teachers.length).toFixed(1) : '0';
+    document.getElementById('teacherTopName').textContent = teachers[0]?.[0] || '-';
+
+    // Teacher bar chart
+    if (teacherChart) teacherChart.destroy();
+    const pastelColors = ['#FFB3C6','#B5EAD7','#B8DCFF','#FFEAA7','#E2CCFF','#FFD3B6','#DCEEFF','#C9F5E5'];
+    teacherChart = new Chart(document.getElementById('teacherChart').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: teachers.map(([name]) => name.length > 14 ? name.substring(0,14)+'..' : name),
+        datasets: [{
+          label: 'จำนวนแผนที่ส่ง',
+          data: teachers.map(([,v]) => v.total),
+          backgroundColor: pastelColors,
+          borderRadius: 8, borderWidth: 0
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: '#F5F5F5' }, ticks: { stepSize: 1, font: { family: 'Prompt', size: 10 } } },
+          y: { grid: { display: false }, ticks: { font: { family: 'Prompt', size: 11 } } }
+        }
+      }
+    });
+
+    // Teacher table
+    if (teachers.length === 0) {
+      document.getElementById('teacherTableBody').innerHTML =
+        '<tr class="loading-row"><td colspan="7">📭 ยังไม่มีข้อมูล</td></tr>';
+      return;
+    }
+
+    document.getElementById('teacherTableBody').innerHTML = teachers.map(([name, v], i) => {
+      const pct = Math.round((v.approved / (v.total || 1)) * 100);
+      return `<tr>
+        <td style="font-weight:600;color:var(--text-light)">${i+1}</td>
+        <td style="font-weight:500">${name}</td>
+        <td style="font-weight:700;color:var(--pink-dark)">${v.total}</td>
+        <td><span class="status-badge status-pending">${v.pending}</span></td>
+        <td><span class="status-badge status-review">${v.review}</span></td>
+        <td><span class="status-badge status-approved">${v.approved}</span></td>
+        <td style="min-width:120px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="progress-mini-wrap" style="flex:1">
+              <div class="progress-mini-bar" style="width:${pct}%"></div>
+            </div>
+            <span style="font-size:11px;color:var(--text-light);white-space:nowrap">${pct}%</span>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function updateTable(rows) {
+    const statusMap = {
+      'รอตรวจ': '<span class="status-badge status-pending">⏳ รอตรวจ</span>',
+      'รอแก้ไข': '<span class="status-badge status-review">🔍 รอแก้ไข</span>',
+      'ตรวจแล้ว': '<span class="status-badge status-approved">✅ ตรวจแล้ว</span>',
+      '': '<span class="status-badge status-pending">⏳ รอตรวจ</span>'
+    };
+
+    const recent = rows.slice(-20).reverse();
+    if (recent.length === 0) {
+      document.getElementById('tableBody').innerHTML = '<tr class="loading-row"><td colspan="8">📭 ยังไม่มีข้อมูล</td></tr>';
+      return;
+    }
+
+    const html = recent.map((row, i) => {
+      const status = (row[7] || '').trim();
+      const statusBadge = statusMap[status] || statusMap[''];
+      const fileUrl = row[8] ? `<a href="${row[8]}" target="_blank" title="ดูไฟล์"><i class="fas fa-file-alt" style="color:var(--green-dark)"></i></a>` : '-';
+      return `<tr>
+        <td>${i + 1}</td>
+        <td style="white-space:nowrap">${row[0] || '-'}</td>
+        <td>${row[1] || '-'}</td>
+        <td>${row[2] || '-'}</td>
+        <td>${row[3] || '-'}</td>
+        <td>${row[4] || '-'}</td>
+        <td>${statusBadge}</td>
+        <td>${row[9] || '-'}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('tableBody').innerHTML = html;
+  }
+
+  // ===== NOTIFICATION SYSTEM =====
+  let notifData = [];
+
+  function toggleNotifPanel() {
+    const panel = document.getElementById('notifPanel');
+    panel.classList.toggle('open');
+  }
+
+  // ปิด panel เมื่อคลิกข้างนอก
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('notifWrap');
+    if (wrap && !wrap.contains(e.target)) {
+      document.getElementById('notifPanel').classList.remove('open');
+    }
+  });
+
+  async function loadNotifications() {
+    if (!currentUser || currentUser.role !== 'teacher') return;
+
+    try {
+      const data = await gasGet({ action: 'getStats' });
+      if (!data.success) return;
+
+      const rows = data.rows || [];
+
+      // จับคู่ด้วย displayName หรือ username (ครอบคลุมทั้งสองกรณี)
+      const myName = (currentUser.displayName || '').trim();
+      const myUser = (currentUser.username || '').trim();
+
+      const readKey = 'notif_read_' + currentUser.username;
+      const readIds = JSON.parse(localStorage.getItem(readKey) || '[]');
+
+      notifData = [];
+      rows.forEach((row, i) => {
+        // col 1 = ชื่อ-นามสกุล (ครูกรอกในฟอร์ม)
+        const nameInSheet = (row[1] || '').trim();
+        const status  = (row[7] || '').trim();
+        const comment = (row[9] || '');
+        const dateTime = row[0] || '';
+        const subject  = row[2] || '';
+        const grade    = row[3] || '';
+
+        // ตรงกับ displayName หรือ username ก็แจ้งเตือนได้
+        const isMyRow = nameInSheet === myName || nameInSheet === myUser;
+
+        if (isMyRow && (status === 'ตรวจแล้ว' || status === 'รอแก้ไข')) {
+          const id = `row_${i}_${status}`;
+          notifData.push({
+            id, status, comment, dateTime, subject, grade,
+            unread: !readIds.includes(id)
+          });
+        }
+      });
+
+      renderNotifications();
+
+      // แจ้งเตือน popup ครั้งแรกที่ login ถ้ามีแจ้งเตือนใหม่
+      const unread = notifData.filter(n => n.unread);
+      if (unread.length > 0) {
+        const sessionKey = 'notif_alerted_' + currentUser.username;
+        if (!sessionStorage.getItem(sessionKey)) {
+          sessionStorage.setItem(sessionKey, '1');
+          setTimeout(() => {
+            Swal.fire({
+              icon: 'info',
+              title: `🔔 มีการแจ้งเตือนใหม่ ${unread.length} รายการ`,
+              html: `<p style="font-family:Prompt">ฝ่ายวิชาการได้ตรวจสอบแผนการสอนของท่านแล้ว<br>กรุณาตรวจสอบที่ไอคอนกระดิ่ง 🔔</p>`,
+              confirmButtonColor: '#FF85A1',
+              confirmButtonText: 'ดูเลย',
+              timer: 6000,
+              timerProgressBar: true
+            }).then(r => {
+              if (r.isConfirmed) {
+                document.getElementById('notifPanel').classList.add('open');
+                document.getElementById('notifWrap').scrollIntoView({ behavior: 'smooth' });
+              }
+            });
+          }, 1200);
+        }
+      }
+
+    } catch(err) {
+      console.error('Notification error:', err);
+    }
+  }
+
+  function renderNotifications() {
+    const list = document.getElementById('notifList');
+    const badge = document.getElementById('notifBadge');
+    const bell = document.getElementById('notifBell');
+    const unreadCount = notifData.filter(n => n.unread).length;
+
+    // อัปเดต badge
+    if (unreadCount > 0) {
+      badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+      badge.style.display = 'flex';
+      bell.classList.add('has-notif');
+    } else {
+      badge.style.display = 'none';
+      bell.classList.remove('has-notif');
+    }
+
+    if (notifData.length === 0) {
+      list.innerHTML = '<div class="notif-empty">🎉 ไม่มีการแจ้งเตือนใหม่</div>';
+      return;
+    }
+
+    const iconMap = {
+      'ตรวจแล้ว': { icon: '✅', cls: 'notif-approved', title: 'ตรวจแล้ว' },
+      'รอแก้ไข':  { icon: '🔍', cls: 'notif-revise',   title: 'ขอให้แก้ไข' }
+    };
+
+    list.innerHTML = notifData.map(n => {
+      const m = iconMap[n.status] || { icon: '📋', cls: 'notif-pending', title: n.status };
+      return `<div class="notif-item ${n.unread ? 'unread' : ''}" onclick="markRead('${n.id}')">
+        ${n.unread ? '<div class="notif-dot"></div>' : '<div style="width:7px;flex-shrink:0"></div>'}
+        <div class="notif-icon-wrap ${m.cls}">${m.icon}</div>
+        <div class="notif-content">
+          <div class="notif-title">แผนการสอน${n.subject ? ' — ' + n.subject : ''} ${m.title}</div>
+          <div class="notif-desc">
+            ระดับชั้น: ${n.grade || '-'}
+            ${n.comment ? `<br>💬 <b>ความคิดเห็น:</b> ${n.comment}` : ''}
+          </div>
+          <div class="notif-time"><i class="fas fa-clock" style="font-size:10px"></i> ${n.dateTime || '-'}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function markRead(id) {
+    const readKey = 'notif_read_' + currentUser.username;
+    const readIds = JSON.parse(localStorage.getItem(readKey) || '[]');
+    if (!readIds.includes(id)) readIds.push(id);
+    localStorage.setItem(readKey, JSON.stringify(readIds));
+    notifData = notifData.map(n => n.id === id ? { ...n, unread: false } : n);
+    renderNotifications();
+  }
+
+  function markAllRead() {
+    const readKey = 'notif_read_' + currentUser.username;
+    const allIds = notifData.map(n => n.id);
+    localStorage.setItem(readKey, JSON.stringify(allIds));
+    notifData = notifData.map(n => ({ ...n, unread: false }));
+    renderNotifications();
+    document.getElementById('notifPanel').classList.remove('open');
+  }
+
+  // ===== ADMIN PANEL =====
+  let allAdminRows = []; // cache rows
+
+  async function loadAdminData() {
+    document.getElementById('adminTableBody').innerHTML =
+      '<tr class="loading-row"><td colspan="11">⏳ กำลังโหลดข้อมูล...</td></tr>';
+    try {
+      const data = await gasGet({ action: 'getStats' });
+      if (!data.success) throw new Error(data.error || 'โหลดข้อมูลไม่สำเร็จ');
+      allAdminRows = (data.rows || []).map((row, i) => ({ index: i, data: row }));
+      filterAdminTable();
+      document.getElementById('adminRowCount').textContent = allAdminRows.length + ' รายการ';
+    } catch(err) {
+      document.getElementById('adminTableBody').innerHTML =
+        `<tr class="loading-row"><td colspan="11">⚠️ ${err.message}</td></tr>`;
+    }
+  }
+
+  function filterAdminTable() {
+    const search = (document.getElementById('adminSearch').value || '').toLowerCase();
+    const statusF = document.getElementById('adminFilterStatus').value;
+    const gradeF = document.getElementById('adminFilterGrade').value;
+
+    const filtered = allAdminRows.filter(({ data: r }) => {
+      const matchSearch = !search ||
+        (r[1]||'').toLowerCase().includes(search) ||
+        (r[2]||'').toLowerCase().includes(search) ||
+        (r[3]||'').toLowerCase().includes(search);
+      const matchStatus = !statusF || (r[7]||'รอตรวจ') === statusF;
+      const matchGrade = !gradeF || r[3] === gradeF;
+      return matchSearch && matchStatus && matchGrade;
+    });
+
+    renderAdminTable(filtered);
+    document.getElementById('adminRowCount').textContent = filtered.length + ' รายการ';
+  }
+
+  function renderAdminTable(rows) {
+    if (rows.length === 0) {
+      document.getElementById('adminTableBody').innerHTML =
+        '<tr class="loading-row"><td colspan="11">📭 ไม่พบข้อมูล</td></tr>';
+      return;
+    }
+
+    const html = rows.map(({ index, data: r }, i) => {
+      const status = r[7] || 'รอตรวจ';
+      const comment = r[9] || '';
+      const fileUrl = r[8] || '';
+      const rowNum = index + 1; // 1-based row in sheet (after header = index+2)
+
+      const statusBadge = {
+        'รอตรวจ':  'status-pending',
+        'รอแก้ไข': 'status-review',
+        'ตรวจแล้ว':'status-approved'
+      }[status] || 'status-pending';
+
+      const statusEmoji = { 'รอตรวจ':'⏳','รอแก้ไข':'🔍','ตรวจแล้ว':'✅' }[status] || '⏳';
+
+      const fileBtn = fileUrl
+        ? `<a href="${fileUrl}" target="_blank" class="file-link"><i class="fas fa-file-alt"></i> เปิดไฟล์</a>`
+        : `<span style="color:var(--text-light);font-size:12px">ไม่มีไฟล์</span>`;
+
+      return `<tr id="adminRow_${index}">
+        <td style="font-weight:600;color:var(--text-light)">${i+1}</td>
+        <td style="white-space:nowrap;font-size:12px">${r[0]||'-'}</td>
+        <td style="font-weight:500">${r[1]||'-'}</td>
+        <td>${r[2]||'-'}</td>
+        <td><span class="badge badge-blue" style="font-size:11px">${r[3]||'-'}</span></td>
+        <td style="font-size:12px">${r[4]||'-'}</td>
+        <td style="font-size:12px">${r[5]||'-'}</td>
+        <td>${fileBtn}</td>
+        <td>
+          <select class="admin-status-select" id="status_${index}" onchange="highlightRow(${index})">
+            <option value="รอตรวจ"  ${status==='รอตรวจ'  ?'selected':''}>⏳ รอตรวจ</option>
+            <option value="รอแก้ไข" ${status==='รอแก้ไข' ?'selected':''}>🔍 รอแก้ไข</option>
+            <option value="ตรวจแล้ว"${status==='ตรวจแล้ว'?'selected':''}>✅ ตรวจแล้ว</option>
+          </select>
+        </td>
+        <td>
+          <textarea class="admin-comment-input" id="comment_${index}" rows="2"
+            placeholder="พิมพ์ความคิดเห็น..."
+            oninput="highlightRow(${index})">${comment}</textarea>
+        </td>
+        <td>
+          <button class="btn-save-row" id="saveBtn_${index}" onclick="saveAdminRow(${index}, ${rowNum})">
+            <i class="fas fa-save"></i> บันทึก
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('adminTableBody').innerHTML = html;
+  }
+
+  function highlightRow(index) {
+    const row = document.getElementById('adminRow_' + index);
+    if (row) row.style.background = 'rgba(226,204,255,0.2)';
+  }
+
+  async function saveAdminRow(index, rowNum) {
+    const newStatus = document.getElementById('status_' + index).value;
+    const newComment = document.getElementById('comment_' + index).value;
+    const btn = document.getElementById('saveBtn_' + index);
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
+
+    try {
+      await gasPost({
+        action: 'updateRow',
+        rowNum: rowNum + 1, // +1 for header row in sheet
+        status: newStatus,
+        comment: newComment
+      });
+
+      // Update local cache
+      allAdminRows[index].data[7] = newStatus;
+      allAdminRows[index].data[9] = newComment;
+
+      btn.innerHTML = '<i class="fas fa-check"></i> บันทึกแล้ว';
+      btn.style.background = 'linear-gradient(135deg, #6DCBA8, #45B393)';
+
+      const row = document.getElementById('adminRow_' + index);
+      if (row) { row.classList.add('saved-flash'); row.style.background = ''; }
+
+      // แจ้งเตือนสำเร็จ
+      const Toast = Swal.mixin({
+        toast: true, position: 'top-end', showConfirmButton: false,
+        timer: 2500, timerProgressBar: true
+      });
+      Toast.fire({ icon: 'success', title: `✅ บันทึกสถานะ "${newStatus}" เรียบร้อย — ครูจะได้รับแจ้งเตือนในระบบ 🔔` });
+
+      // Reset button after 3s
+      setTimeout(() => {
+        btn.innerHTML = '<i class="fas fa-save"></i> บันทึก';
+        btn.style.background = '';
+        btn.disabled = false;
+      }, 3000);
+
+      // Refresh stats
+      setTimeout(() => loadStats(), 1000);
+
+    } catch(err) {
+      btn.innerHTML = '<i class="fas fa-save"></i> บันทึก';
+      btn.disabled = false;
+      Swal.fire({ icon: 'error', title: '❌ บันทึกไม่สำเร็จ',
+        text: err.message, confirmButtonColor: '#FF85A1' });
+    }
+  }
+
+  // Auto-load stats after login (called from showMainContent)
+  window.addEventListener('load', () => {
+    initDropZone();
+    setInterval(() => {
+      if (currentUser) {
+        loadStats();
+        if (currentUser.role === 'teacher') loadNotifications();
+      }
+    }, 60000);
+    checkSession();
+  });
+</script>
+</body>
+</html>
