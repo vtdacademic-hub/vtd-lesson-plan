@@ -491,39 +491,59 @@
 </div><!-- end mainContent -->
 
 <script>
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwLIhw9wtm0Bc0Vfd_v0TKD_F6ODFSfs0FeGAUQ7cvmhET3tiwiq8AGKqrzp9hg0kteTw/exec';
+// =====================================================================
+// CONFIG — อัพเดต URL Apps Script ใหม่
+// =====================================================================
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwgKTjIarel6iSUWzgicEnoBUoKC6_mnIJGCQxwX6XlULI3A38M2Kzt8EQd4TXODzgj/exec';
+
 let currentUser = null;
 
-// ===== SESSION =====
-function checkSession() {
-  const saved = sessionStorage.getItem('lessonPlanUser');
-  if (saved) { currentUser = JSON.parse(saved); showMainContent(); }
-}
+// =====================================================================
+// GAS HELPERS
+// =====================================================================
 
-// ===== GAS HELPERS =====
-// POST ผ่าน fetch + JSON body — รองรับ base64 ขนาดใหญ่ได้
+/**
+ * POST — ใช้ FormData + no-cors เพื่อหลีกเลี่ยง CORS preflight
+ * ข้อจำกัด: ไม่ได้รับ response กลับ (opaque) ดังนั้นถือว่าสำเร็จเสมอ
+ * Apps Script ต้องอ่านข้อมูลจาก e.parameter (ไม่ใช่ e.postData.contents)
+ */
 async function gasPost(params) {
-  const res = await fetch(APPS_SCRIPT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params),
-    redirect: 'follow'
+  const formData = new FormData();
+  Object.entries(params).forEach(([k, v]) => {
+    formData.append(k, v == null ? '' : String(v));
   });
-  const text = await res.text();
-  try { return JSON.parse(text); }
-  catch(_) { return { success: true }; } // GAS บางครั้ง redirect แล้วไม่ return JSON
+  await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    body: formData,
+    mode: 'no-cors'   // ← สำคัญ: ป้องกัน CORS preflight error
+  });
+  // no-cors ไม่มี response body → return success ไปก่อน
+  return { success: true };
 }
 
+/**
+ * GET — ยังใช้ GET ปกติได้เพราะไม่มี preflight
+ */
 async function gasGet(params) {
   const url = new URL(APPS_SCRIPT_URL);
-  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k,v));
-  const res  = await fetch(url.toString(), { method:'GET', redirect:'follow', mode:'cors' });
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const res  = await fetch(url.toString(), { method: 'GET', redirect: 'follow' });
   const text = await res.text();
   if (!text || text.trim().startsWith('<')) throw new Error('ไม่ได้รับข้อมูลจาก Apps Script');
   return JSON.parse(text);
 }
 
-// ===== LOGIN =====
+// =====================================================================
+// SESSION
+// =====================================================================
+function checkSession() {
+  const saved = sessionStorage.getItem('lessonPlanUser');
+  if (saved) { currentUser = JSON.parse(saved); showMainContent(); }
+}
+
+// =====================================================================
+// LOGIN
+// =====================================================================
 async function doLogin() {
   const uname  = document.getElementById('loginUsername').value.trim();
   const pw     = document.getElementById('loginPassword').value;
@@ -531,289 +551,357 @@ async function doLogin() {
   const errMsg = document.getElementById('loginErrorMsg');
   const btn    = document.getElementById('btnLogin');
   errEl.classList.remove('show');
-  if (!uname || !pw) { errMsg.textContent='กรุณากรอก Username และ Password'; errEl.classList.add('show'); return; }
-  btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> กำลังตรวจสอบ...'; btn.disabled=true;
+  if (!uname || !pw) { errMsg.textContent = 'กรุณากรอก Username และ Password'; errEl.classList.add('show'); return; }
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังตรวจสอบ...'; btn.disabled = true;
   try {
-    const data = await gasGet({ action:'getUsers' });
+    const data = await gasGet({ action: 'getUsers' });
     if (!data.success) throw new Error('โหลดข้อมูลผู้ใช้ไม่สำเร็จ');
-    const user = (data.users||[]).find(u => u.username===uname && u.password===pw);
+    const user = (data.users || []).find(u => u.username === uname && u.password === pw);
     if (user) {
-      if (user.status==='รออนุมัติ') {
-        errMsg.textContent='บัญชีของท่านยังรอการอนุมัติจาก Admin';
+      if (user.status === 'รออนุมัติ') {
+        errMsg.textContent = 'บัญชีของท่านยังรอการอนุมัติจาก Admin';
         errEl.classList.add('show');
-        btn.innerHTML='<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ'; btn.disabled=false; return;
+        btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ'; btn.disabled = false; return;
       }
-      currentUser=user; sessionStorage.setItem('lessonPlanUser',JSON.stringify(user));
-      Swal.fire({ icon:'success', title:'ยินดีต้อนรับ! 🎉',
-        html:`<p style="font-family:Prompt">สวัสดี <b>${user.displayName}</b></p>`,
-        timer:1600, showConfirmButton:false, timerProgressBar:true
-      }).then(()=>showMainContent());
+      currentUser = user; sessionStorage.setItem('lessonPlanUser', JSON.stringify(user));
+      Swal.fire({
+        icon: 'success', title: 'ยินดีต้อนรับ! 🎉',
+        html: `<p style="font-family:Prompt">สวัสดี <b>${user.displayName}</b></p>`,
+        timer: 1600, showConfirmButton: false, timerProgressBar: true
+      }).then(() => showMainContent());
     } else {
-      errMsg.textContent='Username หรือ Password ไม่ถูกต้อง';
+      errMsg.textContent = 'Username หรือ Password ไม่ถูกต้อง';
       errEl.classList.add('show');
-      document.getElementById('loginPassword').value='';
-      btn.innerHTML='<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ'; btn.disabled=false;
+      document.getElementById('loginPassword').value = '';
+      btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ'; btn.disabled = false;
     }
   } catch(err) {
-    errMsg.textContent='เชื่อมต่อระบบไม่ได้ กรุณาลองใหม่';
+    errMsg.textContent = 'เชื่อมต่อระบบไม่ได้ กรุณาลองใหม่';
     errEl.classList.add('show');
-    btn.innerHTML='<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ'; btn.disabled=false;
+    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ'; btn.disabled = false;
   }
 }
 
 function showMainContent() {
-  document.getElementById('loginOverlay').style.display='none';
-  document.getElementById('mainContent').style.display='block';
-  document.getElementById('navUsername').textContent=currentUser.displayName;
-  const isTeacher = currentUser.role==='teacher';
-  const isAdmin   = currentUser.role==='admin'||currentUser.role==='academic';
-  document.getElementById('form-section').style.display  = isTeacher?'block':'none';
-  document.getElementById('formNavBtn').style.display    = isTeacher?'flex':'none';
-  if (isTeacher) { const f=document.getElementById('teacherName'); if(f)f.value=currentUser.displayName; }
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('mainContent').style.display  = 'block';
+  document.getElementById('navUsername').textContent    = currentUser.displayName;
+  const isTeacher = currentUser.role === 'teacher';
+  const isAdmin   = currentUser.role === 'admin' || currentUser.role === 'academic';
+  document.getElementById('form-section').style.display  = isTeacher ? 'block' : 'none';
+  document.getElementById('formNavBtn').style.display    = isTeacher ? 'flex'  : 'none';
+  if (isTeacher) { const f = document.getElementById('teacherName'); if (f) f.value = currentUser.displayName; }
   if (isAdmin) {
-    document.getElementById('adminNavBtn').style.display  ='flex';
-    document.getElementById('admin-section').style.display='block';
-    setTimeout(()=>{ loadAdminData(); loadUserManagement(); },600);
+    document.getElementById('adminNavBtn').style.display   = 'flex';
+    document.getElementById('admin-section').style.display = 'block';
+    setTimeout(() => { loadAdminData(); loadUserManagement(); }, 600);
   }
-  if (isTeacher) { document.getElementById('notifWrap').style.display='flex'; setTimeout(()=>loadNotifications(),800); }
-  setTimeout(()=>loadStats(),500);
+  if (isTeacher) { document.getElementById('notifWrap').style.display = 'flex'; setTimeout(() => loadNotifications(), 800); }
+  setTimeout(() => loadStats(), 500);
 }
 
 function doLogout() {
-  Swal.fire({ title:'ออกจากระบบ?', icon:'question', showCancelButton:true,
-    confirmButtonColor:'#FF85A1', cancelButtonColor:'#aaa',
-    confirmButtonText:'ใช่, ออกจากระบบ', cancelButtonText:'ยกเลิก'
-  }).then(r=>{
-    if(r.isConfirmed){
-      sessionStorage.removeItem('lessonPlanUser'); currentUser=null;
-      document.getElementById('loginUsername').value=''; document.getElementById('loginPassword').value='';
+  Swal.fire({
+    title: 'ออกจากระบบ?', icon: 'question', showCancelButton: true,
+    confirmButtonColor: '#FF85A1', cancelButtonColor: '#aaa',
+    confirmButtonText: 'ใช่, ออกจากระบบ', cancelButtonText: 'ยกเลิก'
+  }).then(r => {
+    if (r.isConfirmed) {
+      sessionStorage.removeItem('lessonPlanUser'); currentUser = null;
+      document.getElementById('loginUsername').value = ''; document.getElementById('loginPassword').value = '';
       document.getElementById('loginError').classList.remove('show');
-      document.getElementById('btnLogin').innerHTML='<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ';
-      document.getElementById('btnLogin').disabled=false;
-      ['adminNavBtn','formNavBtn'].forEach(id=>document.getElementById(id).style.display='none');
-      ['admin-section','form-section'].forEach(id=>document.getElementById(id).style.display='none');
-      document.getElementById('notifWrap').style.display='none';
+      document.getElementById('btnLogin').innerHTML = '<i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ';
+      document.getElementById('btnLogin').disabled = false;
+      ['adminNavBtn','formNavBtn'].forEach(id => document.getElementById(id).style.display = 'none');
+      ['admin-section','form-section'].forEach(id => document.getElementById(id).style.display = 'none');
+      document.getElementById('notifWrap').style.display = 'none';
       document.getElementById('notifPanel').classList.remove('open');
-      document.getElementById('mainContent').style.display='none';
-      document.getElementById('loginOverlay').style.display='flex';
+      document.getElementById('mainContent').style.display = 'none';
+      document.getElementById('loginOverlay').style.display = 'flex';
     }
   });
 }
 
 function togglePassword() {
-  const inp=document.getElementById('loginPassword'), ic=document.getElementById('togglePwIcon');
-  if(inp.type==='password'){inp.type='text';ic.className='fas fa-eye-slash';}
-  else{inp.type='password';ic.className='fas fa-eye';}
+  const inp = document.getElementById('loginPassword'), ic = document.getElementById('togglePwIcon');
+  if (inp.type === 'password') { inp.type = 'text'; ic.className = 'fas fa-eye-slash'; }
+  else { inp.type = 'password'; ic.className = 'fas fa-eye'; }
 }
 
-// ===== MULTI-FILE =====
-let selectedFiles=[];
-function getFileIcon(n){const e=n.split('.').pop().toLowerCase();return e==='pdf'?'📄':['doc','docx'].includes(e)?'📝':['ppt','pptx'].includes(e)?'📊':['xls','xlsx'].includes(e)?'📈':['zip','rar'].includes(e)?'🗜️':['jpg','jpeg','png'].includes(e)?'🖼️':'📎';}
-function handleFileSelect(ev){ addFiles(Array.from(ev.target.files)); ev.target.value=''; }
-function addFiles(files){
-  files.forEach(f=>{
-    if(f.size>10*1024*1024){Swal.fire({icon:'warning',title:'ไฟล์ใหญ่เกินไป',text:`"${f.name}" เกิน 10MB`,confirmButtonColor:'#FF85A1'});return;}
-    if(selectedFiles.find(x=>x.name===f.name&&x.size===f.size))return;
+// =====================================================================
+// MULTI-FILE
+// =====================================================================
+let selectedFiles = [];
+function getFileIcon(n) {
+  const e = n.split('.').pop().toLowerCase();
+  return e === 'pdf' ? '📄' : ['doc','docx'].includes(e) ? '📝' : ['ppt','pptx'].includes(e) ? '📊'
+    : ['xls','xlsx'].includes(e) ? '📈' : ['zip','rar'].includes(e) ? '🗜️' : ['jpg','jpeg','png'].includes(e) ? '🖼️' : '📎';
+}
+function handleFileSelect(ev) { addFiles(Array.from(ev.target.files)); ev.target.value = ''; }
+function addFiles(files) {
+  files.forEach(f => {
+    if (f.size > 10 * 1024 * 1024) {
+      Swal.fire({ icon: 'warning', title: 'ไฟล์ใหญ่เกินไป', text: `"${f.name}" เกิน 10MB`, confirmButtonColor: '#FF85A1' }); return;
+    }
+    if (selectedFiles.find(x => x.name === f.name && x.size === f.size)) return;
     selectedFiles.push(f);
   });
   renderFileList();
 }
-function removeFile(i){selectedFiles.splice(i,1);renderFileList();}
-function renderFileList(){
-  const l=document.getElementById('fileList');
-  if(!selectedFiles.length){l.innerHTML='';return;}
-  l.innerHTML=selectedFiles.map((f,i)=>`<div class="file-list-item">
+function removeFile(i) { selectedFiles.splice(i, 1); renderFileList(); }
+function renderFileList() {
+  const l = document.getElementById('fileList');
+  if (!selectedFiles.length) { l.innerHTML = ''; return; }
+  l.innerHTML = selectedFiles.map((f, i) => `<div class="file-list-item">
     <span class="file-icon">${getFileIcon(f.name)}</span>
     <div class="file-info"><div class="file-name">${f.name}</div><div class="file-sz">${formatSize(f.size)}</div></div>
     <button class="file-remove" onclick="removeFile(${i})"><i class="fas fa-times"></i> ลบ</button>
   </div>`).join('');
 }
-function formatSize(b){if(b<1024)return b+' B';if(b<1048576)return (b/1024).toFixed(1)+' KB';return (b/1048576).toFixed(1)+' MB';}
-function fileToBase64(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(f);});}
-function initDropZone(){
-  const z=document.getElementById('dropZone'); if(!z)return;
-  z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('drag-over');});
-  z.addEventListener('dragleave',()=>z.classList.remove('drag-over'));
-  z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('drag-over');addFiles(Array.from(e.dataTransfer.files));});
+function formatSize(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b/1024).toFixed(1) + ' KB'; return (b/1048576).toFixed(1) + ' MB'; }
+function fileToBase64(f) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result.split(',')[1]); r.onerror = rej; r.readAsDataURL(f); });
+}
+function initDropZone() {
+  const z = document.getElementById('dropZone'); if (!z) return;
+  z.addEventListener('dragover',  e => { e.preventDefault(); z.classList.add('drag-over'); });
+  z.addEventListener('dragleave', () => z.classList.remove('drag-over'));
+  z.addEventListener('drop', e => { e.preventDefault(); z.classList.remove('drag-over'); addFiles(Array.from(e.dataTransfer.files)); });
 }
 
-// ===== SUBMIT =====
-async function submitForm(){
-  const name=document.getElementById('teacherName').value.trim();
-  const subject=document.getElementById('subject').value;
-  const grade=document.getElementById('grade').value;
-  const fileType=document.getElementById('fileType').value;
-  const courseCode=document.getElementById('courseCode').value.trim();
-  if(!name||!subject||!grade||!fileType||!selectedFiles.length){
-    const m=[];if(!name)m.push('ชื่อ-นามสกุล');if(!subject)m.push('กลุ่มประสบการณ์');
-    if(!grade)m.push('ระดับชั้น');if(!fileType)m.push('ประเภทไฟล์');if(!selectedFiles.length)m.push('ไฟล์แนบ');
-    Swal.fire({icon:'warning',title:'กรุณากรอกข้อมูลให้ครบ',html:`<p style="font-family:Prompt">ยังขาด: <b>${m.join(', ')}</b></p>`,confirmButtonColor:'#FF85A1'});
+// =====================================================================
+// SUBMIT — ส่งทีละไฟล์ผ่าน FormData (no-cors)
+// =====================================================================
+async function submitForm() {
+  const name       = document.getElementById('teacherName').value.trim();
+  const subject    = document.getElementById('subject').value;
+  const grade      = document.getElementById('grade').value;
+  const fileType   = document.getElementById('fileType').value;
+  const courseCode = document.getElementById('courseCode').value.trim();
+
+  if (!name || !subject || !grade || !fileType || !selectedFiles.length) {
+    const m = [];
+    if (!name)              m.push('ชื่อ-นามสกุล');
+    if (!subject)           m.push('กลุ่มประสบการณ์');
+    if (!grade)             m.push('ระดับชั้น');
+    if (!fileType)          m.push('ประเภทไฟล์');
+    if (!selectedFiles.length) m.push('ไฟล์แนบ');
+    Swal.fire({ icon: 'warning', title: 'กรุณากรอกข้อมูลให้ครบ',
+      html: `<p style="font-family:Prompt">ยังขาด: <b>${m.join(', ')}</b></p>`, confirmButtonColor: '#FF85A1' });
     return;
   }
-  Swal.fire({title:`⏳ กำลังส่ง (0/${selectedFiles.length} ไฟล์)`,
-    html:'<p style="font-family:Prompt">กรุณารอสักครู่...</p>',
-    allowOutsideClick:false,showConfirmButton:false,didOpen:()=>Swal.showLoading()});
+
+  Swal.fire({
+    title: `⏳ กำลังส่ง (0/${selectedFiles.length} ไฟล์)`,
+    html: '<p style="font-family:Prompt">กรุณารอสักครู่...</p>',
+    allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading()
+  });
+
   try {
-    const now=new Date();
-    const dateTime=now.toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})+' '+now.toLocaleTimeString('th-TH');
-    for(let i=0;i<selectedFiles.length;i++){
-      const f=selectedFiles[i];
-      Swal.update({title:`⏳ กำลังส่ง (${i+1}/${selectedFiles.length}) ไฟล์`});
-      const base64=await fileToBase64(f);
-      const res=await gasPost({action:'submit',dateTime,teacherName:name,subject,grade,fileType,courseCode,
-        fileName:f.name,fileMime:f.type,fileData:base64});
-      if(res && res.success===false) throw new Error(res.error||'ส่งไม่สำเร็จ');
+    const now      = new Date();
+    const dateTime = now.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })
+                   + ' ' + now.toLocaleTimeString('th-TH');
+
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const f = selectedFiles[i];
+      Swal.update({ title: `⏳ กำลังส่ง (${i+1}/${selectedFiles.length}) ไฟล์` });
+
+      // แปลงไฟล์เป็น base64
+      const base64 = await fileToBase64(f);
+
+      // ส่งผ่าน FormData + no-cors (ไม่มี preflight)
+      await gasPost({
+        action:      'submit',
+        dateTime,
+        teacherName: name,
+        subject,
+        grade,
+        fileType,
+        courseCode,
+        fileName:    f.name,
+        fileMime:    f.type,
+        fileData:    base64
+      });
     }
-    Swal.fire({icon:'success',title:'✅ ส่งสำเร็จ!',
-      html:`<p style="font-family:Prompt">อัปโหลด <b>${selectedFiles.length} ไฟล์</b> เรียบร้อยแล้ว 🎉</p>`,
-      confirmButtonColor:'#6DCBA8',confirmButtonText:'เยี่ยม!'});
-    resetForm(); setTimeout(()=>loadStats(),2000);
-  } catch(err){
-    Swal.fire({icon:'error',title:'❌ เกิดข้อผิดพลาด',html:`<p style="font-family:Prompt">${err.message}</p>`,confirmButtonColor:'#FF85A1'});
+
+    Swal.fire({
+      icon: 'success', title: '✅ ส่งสำเร็จ!',
+      html: `<p style="font-family:Prompt">อัปโหลด <b>${selectedFiles.length} ไฟล์</b> เรียบร้อยแล้ว 🎉</p>`,
+      confirmButtonColor: '#6DCBA8', confirmButtonText: 'เยี่ยม!'
+    });
+    resetForm();
+    setTimeout(() => loadStats(), 3000); // รอ Apps Script บันทึกเสร็จก่อน refresh
+  } catch(err) {
+    Swal.fire({ icon: 'error', title: '❌ เกิดข้อผิดพลาด',
+      html: `<p style="font-family:Prompt">${err.message}</p>`, confirmButtonColor: '#FF85A1' });
   }
 }
 
-function resetForm(){
-  document.getElementById('teacherName').value=currentUser?currentUser.displayName:'';
-  document.getElementById('subject').value=''; document.getElementById('grade').value='';
-  document.getElementById('fileType').value=''; document.getElementById('courseCode').value='';
-  document.getElementById('fileInput').value=''; selectedFiles=[]; renderFileList();
+function resetForm() {
+  document.getElementById('teacherName').value = currentUser ? currentUser.displayName : '';
+  document.getElementById('subject').value     = '';
+  document.getElementById('grade').value       = '';
+  document.getElementById('fileType').value    = '';
+  document.getElementById('courseCode').value  = '';
+  document.getElementById('fileInput').value   = '';
+  selectedFiles = []; renderFileList();
 }
 
-// ===== REGISTER =====
-function showRegisterModal(){document.getElementById('registerModal').style.display='flex';}
-function hideRegisterModal(){
-  document.getElementById('registerModal').style.display='none';
-  ['regName','regUsername','regPassword'].forEach(id=>document.getElementById(id).value='');
+// =====================================================================
+// REGISTER
+// =====================================================================
+function showRegisterModal() { document.getElementById('registerModal').style.display = 'flex'; }
+function hideRegisterModal() {
+  document.getElementById('registerModal').style.display = 'none';
+  ['regName','regUsername','regPassword'].forEach(id => document.getElementById(id).value = '');
 }
-async function submitRegister(){
-  const displayName=document.getElementById('regName').value.trim();
-  const username=document.getElementById('regUsername').value.trim();
-  const password=document.getElementById('regPassword').value.trim();
-  const role=document.getElementById('regRole').value;
-  if(!displayName||!username||!password){Swal.fire({icon:'warning',title:'กรอกข้อมูลให้ครบ',confirmButtonColor:'#FF85A1'});return;}
-  Swal.fire({title:'⏳ กำลังส่งคำขอ...',allowOutsideClick:false,showConfirmButton:false,didOpen:()=>Swal.showLoading()});
-  try{
-    await gasPost({action:'registerUser',displayName,username,password,role,status:'รออนุมัติ'});
+async function submitRegister() {
+  const displayName = document.getElementById('regName').value.trim();
+  const username    = document.getElementById('regUsername').value.trim();
+  const password    = document.getElementById('regPassword').value.trim();
+  const role        = document.getElementById('regRole').value;
+  if (!displayName || !username || !password) {
+    Swal.fire({ icon: 'warning', title: 'กรอกข้อมูลให้ครบ', confirmButtonColor: '#FF85A1' }); return;
+  }
+  Swal.fire({ title: '⏳ กำลังส่งคำขอ...', allowOutsideClick: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
+  try {
+    await gasPost({ action: 'registerUser', displayName, username, password, role, status: 'รออนุมัติ' });
     hideRegisterModal();
-    Swal.fire({icon:'success',title:'📝 ส่งคำขอแล้ว!',
-      html:`<p style="font-family:Prompt">รอ Admin อนุมัติ<br>Username: <b>${username}</b></p>`,confirmButtonColor:'#6DCBA8'});
-  }catch(err){Swal.fire({icon:'error',title:'เกิดข้อผิดพลาด',text:err.message,confirmButtonColor:'#FF85A1'});}
+    Swal.fire({
+      icon: 'success', title: '📝 ส่งคำขอแล้ว!',
+      html: `<p style="font-family:Prompt">รอ Admin อนุมัติ<br>Username: <b>${username}</b></p>`,
+      confirmButtonColor: '#6DCBA8'
+    });
+  } catch(err) {
+    Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message, confirmButtonColor: '#FF85A1' });
+  }
 }
 
-// ===== USER MANAGEMENT =====
-async function loadUserManagement(){
-  try{
-    const data=await gasGet({action:'getUsers'}); if(!data.success)return;
-    const users=data.users||[]; const body=document.getElementById('userTableBody');
-    if(!users.length){body.innerHTML='<tr class="loading-row"><td colspan="6">📭 ไม่มีข้อมูลสมาชิก</td></tr>';return;}
-    const roleLabel={teacher:'👩‍🏫 ครูผู้สอน',academic:'📚 ฝ่ายวิชาการ',admin:'🛡️ Admin'};
-    body.innerHTML=users.map((u,i)=>{
-      const pend=(u.status||'')==='รออนุมัติ';
-      const sb=pend?`<span class="status-badge" style="background:#FFEAA7;color:#9B7B00">⏳ รออนุมัติ</span>`
-                   :`<span class="status-badge status-approved">✅ ใช้งานได้</span>`;
+// =====================================================================
+// USER MANAGEMENT
+// =====================================================================
+async function loadUserManagement() {
+  try {
+    const data = await gasGet({ action: 'getUsers' }); if (!data.success) return;
+    const users = data.users || []; const body = document.getElementById('userTableBody');
+    if (!users.length) { body.innerHTML = '<tr class="loading-row"><td colspan="6">📭 ไม่มีข้อมูลสมาชิก</td></tr>'; return; }
+    const roleLabel = { teacher: '👩‍🏫 ครูผู้สอน', academic: '📚 ฝ่ายวิชาการ', admin: '🛡️ Admin' };
+    body.innerHTML = users.map((u, i) => {
+      const pend = (u.status || '') === 'รออนุมัติ';
+      const sb   = pend
+        ? `<span class="status-badge" style="background:#FFEAA7;color:#9B7B00">⏳ รออนุมัติ</span>`
+        : `<span class="status-badge status-approved">✅ ใช้งานได้</span>`;
       return `<tr><td>${i+1}</td><td style="font-weight:500">${u.displayName}</td>
         <td style="font-size:12px;color:var(--text-light)">${u.username}</td>
-        <td>${roleLabel[u.role]||u.role}</td><td>${sb}</td>
+        <td>${roleLabel[u.role] || u.role}</td><td>${sb}</td>
         <td style="display:flex;gap:6px;flex-wrap:wrap">
-          ${pend?`<button onclick="approveUser('${u.username}')" style="padding:5px 10px;background:var(--green-light);color:var(--green-dark);border:none;border-radius:8px;font-family:'Prompt',sans-serif;font-size:11px;font-weight:600;cursor:pointer"><i class="fas fa-check"></i> อนุมัติ</button>`:''}
+          ${pend ? `<button onclick="approveUser('${u.username}')" style="padding:5px 10px;background:var(--green-light);color:var(--green-dark);border:none;border-radius:8px;font-family:'Prompt',sans-serif;font-size:11px;font-weight:600;cursor:pointer"><i class="fas fa-check"></i> อนุมัติ</button>` : ''}
           <button onclick="deleteUser('${u.username}','${u.displayName}')" style="padding:5px 10px;background:#FFE5E5;color:#C0392B;border:none;border-radius:8px;font-family:'Prompt',sans-serif;font-size:11px;font-weight:600;cursor:pointer"><i class="fas fa-trash"></i> ลบ</button>
         </td></tr>`;
     }).join('');
-  }catch(err){console.error(err);}
+  } catch(err) { console.error(err); }
 }
-async function approveUser(u){
-  try{await gasPost({action:'approveUser',username:u});
-    Swal.mixin({toast:true,position:'top-end',showConfirmButton:false,timer:2000}).fire({icon:'success',title:`✅ อนุมัติ ${u} แล้ว`});
-    loadUserManagement();}catch(err){Swal.fire({icon:'error',text:err.message});}
+async function approveUser(u) {
+  try {
+    await gasPost({ action: 'approveUser', username: u });
+    Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 }).fire({ icon: 'success', title: `✅ อนุมัติ ${u} แล้ว` });
+    setTimeout(() => loadUserManagement(), 1500);
+  } catch(err) { Swal.fire({ icon: 'error', text: err.message }); }
 }
-async function deleteUser(u,n){
-  const r=await Swal.fire({title:`ลบสมาชิก "${n}"?`,icon:'warning',showCancelButton:true,
-    confirmButtonColor:'#C0392B',cancelButtonColor:'#aaa',confirmButtonText:'ลบเลย',cancelButtonText:'ยกเลิก'});
-  if(!r.isConfirmed)return;
-  try{await gasPost({action:'deleteUser',username:u});
-    Swal.mixin({toast:true,position:'top-end',showConfirmButton:false,timer:2000}).fire({icon:'success',title:`🗑️ ลบ ${n} แล้ว`});
-    loadUserManagement();}catch(err){Swal.fire({icon:'error',text:err.message});}
-}
-
-// ===== STATS =====
-let gradeChart=null,subjectChart=null,fileTypeChart=null,statusChart=null,teacherChart=null;
-function smoothScroll(id){document.getElementById(id).scrollIntoView({behavior:'smooth'});}
-function switchTab(t){
-  document.getElementById('tabOverviewContent').style.display=t==='overview'?'block':'none';
-  document.getElementById('tabTeacherContent').style.display=t==='teacher'?'block':'none';
-  document.getElementById('tabOverview').classList.toggle('active',t==='overview');
-  document.getElementById('tabTeacher').classList.toggle('active',t==='teacher');
+async function deleteUser(u, n) {
+  const r = await Swal.fire({
+    title: `ลบสมาชิก "${n}"?`, icon: 'warning', showCancelButton: true,
+    confirmButtonColor: '#C0392B', cancelButtonColor: '#aaa', confirmButtonText: 'ลบเลย', cancelButtonText: 'ยกเลิก'
+  });
+  if (!r.isConfirmed) return;
+  try {
+    await gasPost({ action: 'deleteUser', username: u });
+    Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 }).fire({ icon: 'success', title: `🗑️ ลบ ${n} แล้ว` });
+    setTimeout(() => loadUserManagement(), 1500);
+  } catch(err) { Swal.fire({ icon: 'error', text: err.message }); }
 }
 
-async function loadStats(){
-  try{
-    const data=await gasGet({action:'getStats'}); if(!data.success)return;
-    const rows=data.rows||[];
-    let total=rows.length,pending=0,review=0,approved=0;
-    const gC={},sC={},fC={},stC={'รอตรวจ':0,'รอแก้ไข':0,'ตรวจแล้ว':0};
-    rows.forEach(r=>{
-      const st=(r[7]||'รอตรวจ').trim();
-      if(st==='รอตรวจ'||st===''){pending++;stC['รอตรวจ']++;}
-      else if(st==='รอแก้ไข'){review++;stC['รอแก้ไข']++;}
-      else if(st==='ตรวจแล้ว'){approved++;stC['ตรวจแล้ว']++;}
-      gC[r[3]||'ไม่ระบุ']=(gC[r[3]||'ไม่ระบุ']||0)+1;
-      sC[r[2]||'ไม่ระบุ']=(sC[r[2]||'ไม่ระบุ']||0)+1;
-      fC[r[4]||'ไม่ระบุ']=(fC[r[4]||'ไม่ระบุ']||0)+1;
+// =====================================================================
+// STATS
+// =====================================================================
+let gradeChart = null, subjectChart = null, fileTypeChart = null, statusChart = null, teacherChart = null;
+function smoothScroll(id) { document.getElementById(id).scrollIntoView({ behavior: 'smooth' }); }
+function switchTab(t) {
+  document.getElementById('tabOverviewContent').style.display = t === 'overview' ? 'block' : 'none';
+  document.getElementById('tabTeacherContent').style.display  = t === 'teacher'  ? 'block' : 'none';
+  document.getElementById('tabOverview').classList.toggle('active', t === 'overview');
+  document.getElementById('tabTeacher').classList.toggle('active',  t === 'teacher');
+}
+
+async function loadStats() {
+  try {
+    const data = await gasGet({ action: 'getStats' }); if (!data.success) return;
+    const rows = data.rows || [];
+    let total = rows.length, pending = 0, review = 0, approved = 0;
+    const gC = {}, sC = {}, fC = {}, stC = { 'รอตรวจ': 0, 'รอแก้ไข': 0, 'ตรวจแล้ว': 0 };
+    rows.forEach(r => {
+      const st = (r[7] || 'รอตรวจ').trim();
+      if (st === 'รอตรวจ' || st === '') { pending++; stC['รอตรวจ']++; }
+      else if (st === 'รอแก้ไข') { review++;   stC['รอแก้ไข']++; }
+      else if (st === 'ตรวจแล้ว') { approved++; stC['ตรวจแล้ว']++; }
+      gC[r[3] || 'ไม่ระบุ'] = (gC[r[3] || 'ไม่ระบุ'] || 0) + 1;
+      sC[r[2] || 'ไม่ระบุ'] = (sC[r[2] || 'ไม่ระบุ'] || 0) + 1;
+      fC[r[4] || 'ไม่ระบุ'] = (fC[r[4] || 'ไม่ระบุ'] || 0) + 1;
     });
-    document.getElementById('totalCount').textContent=total;
-    document.getElementById('pendingCount').textContent=pending;
-    document.getElementById('reviewCount').textContent=review;
-    document.getElementById('approvedCount').textContent=approved;
-    updateCharts(gC,sC,fC,stC); updateTable(rows); updateTeacherStats(rows);
-  }catch(err){
+    document.getElementById('totalCount').textContent    = total;
+    document.getElementById('pendingCount').textContent  = pending;
+    document.getElementById('reviewCount').textContent   = review;
+    document.getElementById('approvedCount').textContent = approved;
+    updateCharts(gC, sC, fC, stC); updateTable(rows); updateTeacherStats(rows);
+  } catch(err) {
     console.error(err);
-    document.getElementById('tableBody').innerHTML='<tr class="loading-row"><td colspan="9">⚠️ ไม่สามารถโหลดข้อมูลได้</td></tr>';
+    document.getElementById('tableBody').innerHTML = '<tr class="loading-row"><td colspan="9">⚠️ ไม่สามารถโหลดข้อมูลได้</td></tr>';
   }
 }
 
-const PC=['#FFB3C6','#B5EAD7','#B8DCFF','#FFEAA7','#E2CCFF','#FFD3B6','#DCEEFF','#C9F5E5','#FFCCE7','#D4F0FF','#FFF0C9','#E8DCFF'];
-function updateCharts(gC,sC,fC,stC){
-  const fo={plugins:{legend:{position:'bottom',labels:{font:{family:'Prompt',size:11},boxWidth:12}}},cutout:'65%'};
-  if(gradeChart)gradeChart.destroy();
-  gradeChart=new Chart(document.getElementById('gradeChart').getContext('2d'),
-    {type:'doughnut',data:{labels:Object.keys(gC),datasets:[{data:Object.values(gC),backgroundColor:PC,borderWidth:0}]},options:fo});
-  if(subjectChart)subjectChart.destroy();
-  subjectChart=new Chart(document.getElementById('subjectChart').getContext('2d'),{type:'bar',
-    data:{labels:Object.keys(sC).map(s=>s.length>8?s.substring(0,8)+'..':s),datasets:[{data:Object.values(sC),backgroundColor:PC,borderRadius:8,borderWidth:0}]},
-    options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{family:'Prompt',size:10}}},y:{grid:{color:'#F5F5F5'},ticks:{font:{family:'Prompt',size:10}}}}}});
-  if(fileTypeChart)fileTypeChart.destroy();
-  fileTypeChart=new Chart(document.getElementById('fileTypeChart').getContext('2d'),
-    {type:'doughnut',data:{labels:Object.keys(fC),datasets:[{data:Object.values(fC),backgroundColor:PC,borderWidth:0}]},options:{...fo,cutout:'60%'}});
-  if(statusChart)statusChart.destroy();
-  statusChart=new Chart(document.getElementById('statusChart').getContext('2d'),{type:'bar',
-    data:{labels:Object.keys(stC),datasets:[{data:Object.values(stC),backgroundColor:['#FFEAA7','#FFE5E5','#B5EAD7'],borderRadius:10,borderWidth:0}]},
-    options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{family:'Prompt',size:11}}},y:{grid:{color:'#F5F5F5'},ticks:{stepSize:1,font:{family:'Prompt',size:10}}}}}});
+const PC = ['#FFB3C6','#B5EAD7','#B8DCFF','#FFEAA7','#E2CCFF','#FFD3B6','#DCEEFF','#C9F5E5','#FFCCE7','#D4F0FF','#FFF0C9','#E8DCFF'];
+function updateCharts(gC, sC, fC, stC) {
+  const fo = { plugins: { legend: { position: 'bottom', labels: { font: { family: 'Prompt', size: 11 }, boxWidth: 12 } } }, cutout: '65%' };
+  if (gradeChart)    gradeChart.destroy();
+  if (subjectChart)  subjectChart.destroy();
+  if (fileTypeChart) fileTypeChart.destroy();
+  if (statusChart)   statusChart.destroy();
+  gradeChart = new Chart(document.getElementById('gradeChart').getContext('2d'),
+    { type: 'doughnut', data: { labels: Object.keys(gC), datasets: [{ data: Object.values(gC), backgroundColor: PC, borderWidth: 0 }] }, options: fo });
+  subjectChart = new Chart(document.getElementById('subjectChart').getContext('2d'), { type: 'bar',
+    data: { labels: Object.keys(sC).map(s => s.length > 8 ? s.substring(0, 8) + '..' : s),
+      datasets: [{ data: Object.values(sC), backgroundColor: PC, borderRadius: 8, borderWidth: 0 }] },
+    options: { plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { font: { family: 'Prompt', size: 10 } } }, y: { grid: { color: '#F5F5F5' }, ticks: { font: { family: 'Prompt', size: 10 } } } } } });
+  fileTypeChart = new Chart(document.getElementById('fileTypeChart').getContext('2d'),
+    { type: 'doughnut', data: { labels: Object.keys(fC), datasets: [{ data: Object.values(fC), backgroundColor: PC, borderWidth: 0 }] }, options: { ...fo, cutout: '60%' } });
+  statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), { type: 'bar',
+    data: { labels: Object.keys(stC), datasets: [{ data: Object.values(stC), backgroundColor: ['#FFEAA7','#FFE5E5','#B5EAD7'], borderRadius: 10, borderWidth: 0 }] },
+    options: { plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { font: { family: 'Prompt', size: 11 } } }, y: { grid: { color: '#F5F5F5' }, ticks: { stepSize: 1, font: { family: 'Prompt', size: 10 } } } } } });
 }
 
-function updateTeacherStats(rows){
-  const tm={};
-  rows.forEach(r=>{
-    const n=(r[1]||'').trim()||'ไม่ระบุ', st=(r[7]||'รอตรวจ').trim();
-    if(!tm[n])tm[n]={total:0,pending:0,review:0,approved:0};
+function updateTeacherStats(rows) {
+  const tm = {};
+  rows.forEach(r => {
+    const n = (r[1] || '').trim() || 'ไม่ระบุ', st = (r[7] || 'รอตรวจ').trim();
+    if (!tm[n]) tm[n] = { total: 0, pending: 0, review: 0, approved: 0 };
     tm[n].total++;
-    if(st==='รอตรวจ'||st==='')tm[n].pending++;
-    else if(st==='รอแก้ไข')tm[n].review++;
-    else if(st==='ตรวจแล้ว')tm[n].approved++;
+    if (st === 'รอตรวจ' || st === '') tm[n].pending++;
+    else if (st === 'รอแก้ไข') tm[n].review++;
+    else if (st === 'ตรวจแล้ว') tm[n].approved++;
   });
-  const teachers=Object.entries(tm).sort((a,b)=>b[1].total-a[1].total);
-  document.getElementById('teacherTotalCount').textContent=teachers.length;
-  document.getElementById('teacherAvgCount').textContent=teachers.length?(rows.length/teachers.length).toFixed(1):'0';
-  document.getElementById('teacherTopName').textContent=teachers[0]?.[0]||'-';
-  if(teacherChart)teacherChart.destroy();
-  teacherChart=new Chart(document.getElementById('teacherChart').getContext('2d'),{type:'bar',
-    data:{labels:teachers.map(([n])=>n.length>14?n.substring(0,14)+'..':n),
-      datasets:[{label:'จำนวนแผนที่ส่ง',data:teachers.map(([,v])=>v.total),backgroundColor:PC,borderRadius:8,borderWidth:0}]},
-    options:{indexAxis:'y',plugins:{legend:{display:false}},
-      scales:{x:{grid:{color:'#F5F5F5'},ticks:{stepSize:1,font:{family:'Prompt',size:10}}},y:{grid:{display:false},ticks:{font:{family:'Prompt',size:11}}}}}});
-  if(!teachers.length){document.getElementById('teacherTableBody').innerHTML='<tr class="loading-row"><td colspan="7">📭 ยังไม่มีข้อมูล</td></tr>';return;}
-  document.getElementById('teacherTableBody').innerHTML=teachers.map(([n,v],i)=>{
-    const pct=Math.round((v.approved/(v.total||1))*100);
+  const teachers = Object.entries(tm).sort((a, b) => b[1].total - a[1].total);
+  document.getElementById('teacherTotalCount').textContent = teachers.length;
+  document.getElementById('teacherAvgCount').textContent   = teachers.length ? (rows.length / teachers.length).toFixed(1) : '0';
+  document.getElementById('teacherTopName').textContent    = teachers[0]?.[0] || '-';
+  if (teacherChart) teacherChart.destroy();
+  teacherChart = new Chart(document.getElementById('teacherChart').getContext('2d'), { type: 'bar',
+    data: { labels: teachers.map(([n]) => n.length > 14 ? n.substring(0, 14) + '..' : n),
+      datasets: [{ label: 'จำนวนแผนที่ส่ง', data: teachers.map(([, v]) => v.total), backgroundColor: PC, borderRadius: 8, borderWidth: 0 }] },
+    options: { indexAxis: 'y', plugins: { legend: { display: false } },
+      scales: { x: { grid: { color: '#F5F5F5' }, ticks: { stepSize: 1, font: { family: 'Prompt', size: 10 } } }, y: { grid: { display: false }, ticks: { font: { family: 'Prompt', size: 11 } } } } } });
+  if (!teachers.length) { document.getElementById('teacherTableBody').innerHTML = '<tr class="loading-row"><td colspan="7">📭 ยังไม่มีข้อมูล</td></tr>'; return; }
+  document.getElementById('teacherTableBody').innerHTML = teachers.map(([n, v], i) => {
+    const pct = Math.round((v.approved / (v.total || 1)) * 100);
     return `<tr><td style="font-weight:600;color:var(--text-light)">${i+1}</td><td style="font-weight:500">${n}</td>
       <td style="font-weight:700;color:var(--pink-dark)">${v.total}</td>
       <td><span class="status-badge status-pending">${v.pending}</span></td>
@@ -825,150 +913,175 @@ function updateTeacherStats(rows){
   }).join('');
 }
 
-// col: 0=date,1=name,2=subject,3=grade,4=fileType,5=courseCode,6=fileName,7=status,8=fileUrl,9=comment
-function updateTable(rows){
-  const sm={'รอตรวจ':'<span class="status-badge status-pending">⏳ รอตรวจ</span>',
-    'รอแก้ไข':'<span class="status-badge status-review">🔍 รอแก้ไข</span>',
+function updateTable(rows) {
+  const sm = {
+    'รอตรวจ':  '<span class="status-badge status-pending">⏳ รอตรวจ</span>',
+    'รอแก้ไข': '<span class="status-badge status-review">🔍 รอแก้ไข</span>',
     'ตรวจแล้ว':'<span class="status-badge status-approved">✅ ตรวจแล้ว</span>',
-    '':'<span class="status-badge status-pending">⏳ รอตรวจ</span>'};
-  const recent=rows.slice(-20).reverse();
-  if(!recent.length){document.getElementById('tableBody').innerHTML='<tr class="loading-row"><td colspan="9">📭 ยังไม่มีข้อมูล</td></tr>';return;}
-  document.getElementById('tableBody').innerHTML=recent.map((r,i)=>{
-    const st=(r[7]||'').trim();
-    const fb=r[8]?`<a href="${r[8]}" target="_blank" class="file-link"><i class="fas fa-file-alt"></i> เปิด</a>`:`<span style="color:var(--text-light);font-size:12px">-</span>`;
+    '':         '<span class="status-badge status-pending">⏳ รอตรวจ</span>'
+  };
+  const recent = rows.slice(-20).reverse();
+  if (!recent.length) { document.getElementById('tableBody').innerHTML = '<tr class="loading-row"><td colspan="9">📭 ยังไม่มีข้อมูล</td></tr>'; return; }
+  document.getElementById('tableBody').innerHTML = recent.map((r, i) => {
+    const st = (r[7] || '').trim();
+    const fb = r[8] ? `<a href="${r[8]}" target="_blank" class="file-link"><i class="fas fa-file-alt"></i> เปิด</a>`
+                    : `<span style="color:var(--text-light);font-size:12px">-</span>`;
     return `<tr><td>${i+1}</td><td style="white-space:nowrap;font-size:12px">${r[0]||'-'}</td>
       <td>${r[1]||'-'}</td><td>${r[2]||'-'}</td><td>${r[3]||'-'}</td><td>${r[4]||'-'}</td>
-      <td>${fb}</td><td>${sm[st]||sm['']}</td><td>${r[9]||'-'}</td></tr>`;
+      <td>${fb}</td><td>${sm[st] || sm['']}</td><td>${r[9]||'-'}</td></tr>`;
   }).join('');
 }
 
-// ===== NOTIFICATIONS =====
-let notifData=[];
-function toggleNotifPanel(){document.getElementById('notifPanel').classList.toggle('open');}
-document.addEventListener('click',e=>{
-  const w=document.getElementById('notifWrap');
-  if(w&&!w.contains(e.target))document.getElementById('notifPanel').classList.remove('open');
+// =====================================================================
+// NOTIFICATIONS
+// =====================================================================
+let notifData = [];
+function toggleNotifPanel() { document.getElementById('notifPanel').classList.toggle('open'); }
+document.addEventListener('click', e => {
+  const w = document.getElementById('notifWrap');
+  if (w && !w.contains(e.target)) document.getElementById('notifPanel').classList.remove('open');
 });
-async function loadNotifications(){
-  if(!currentUser||currentUser.role!=='teacher')return;
-  try{
-    const data=await gasGet({action:'getStats'}); if(!data.success)return;
-    const rows=data.rows||[], myName=(currentUser.displayName||'').trim(), myUser=(currentUser.username||'').trim();
-    const readKey='notif_read_'+currentUser.username;
-    const readIds=JSON.parse(localStorage.getItem(readKey)||'[]');
-    notifData=[];
-    rows.forEach((r,i)=>{
-      const nameInSheet=(r[1]||'').trim(), st=(r[7]||'').trim();
-      if((nameInSheet===myName||nameInSheet===myUser)&&(st==='ตรวจแล้ว'||st==='รอแก้ไข')){
-        const id=`row_${i}_${st}`;
-        notifData.push({id,status:st,comment:r[9]||'',dateTime:r[0]||'',subject:r[2]||'',grade:r[3]||'',unread:!readIds.includes(id)});
+async function loadNotifications() {
+  if (!currentUser || currentUser.role !== 'teacher') return;
+  try {
+    const data = await gasGet({ action: 'getStats' }); if (!data.success) return;
+    const rows = data.rows || [], myName = (currentUser.displayName || '').trim(), myUser = (currentUser.username || '').trim();
+    const readKey = 'notif_read_' + currentUser.username;
+    const readIds = JSON.parse(localStorage.getItem(readKey) || '[]');
+    notifData = [];
+    rows.forEach((r, i) => {
+      const nameInSheet = (r[1] || '').trim(), st = (r[7] || '').trim();
+      if ((nameInSheet === myName || nameInSheet === myUser) && (st === 'ตรวจแล้ว' || st === 'รอแก้ไข')) {
+        const id = `row_${i}_${st}`;
+        notifData.push({ id, status: st, comment: r[9] || '', dateTime: r[0] || '', subject: r[2] || '', grade: r[3] || '', unread: !readIds.includes(id) });
       }
     });
     renderNotifications();
-    const unread=notifData.filter(n=>n.unread);
-    const sKey='notif_alerted_'+currentUser.username;
-    if(unread.length>0&&!sessionStorage.getItem(sKey)){
-      sessionStorage.setItem(sKey,'1');
-      setTimeout(()=>{Swal.fire({icon:'info',title:`🔔 มีการแจ้งเตือนใหม่ ${unread.length} รายการ`,
-        html:`<p style="font-family:Prompt">ฝ่ายวิชาการตรวจสอบแผนการสอนของท่านแล้ว<br>กรุณาตรวจสอบที่ไอคอนกระดิ่ง 🔔</p>`,
-        confirmButtonColor:'#FF85A1',confirmButtonText:'ดูเลย',timer:6000,timerProgressBar:true
-      }).then(r=>{if(r.isConfirmed){document.getElementById('notifPanel').classList.add('open');document.getElementById('notifWrap').scrollIntoView({behavior:'smooth'});}});},1200);
+    const unread = notifData.filter(n => n.unread);
+    const sKey = 'notif_alerted_' + currentUser.username;
+    if (unread.length > 0 && !sessionStorage.getItem(sKey)) {
+      sessionStorage.setItem(sKey, '1');
+      setTimeout(() => {
+        Swal.fire({
+          icon: 'info', title: `🔔 มีการแจ้งเตือนใหม่ ${unread.length} รายการ`,
+          html: `<p style="font-family:Prompt">ฝ่ายวิชาการตรวจสอบแผนการสอนของท่านแล้ว<br>กรุณาตรวจสอบที่ไอคอนกระดิ่ง 🔔</p>`,
+          confirmButtonColor: '#FF85A1', confirmButtonText: 'ดูเลย', timer: 6000, timerProgressBar: true
+        }).then(r => {
+          if (r.isConfirmed) {
+            document.getElementById('notifPanel').classList.add('open');
+            document.getElementById('notifWrap').scrollIntoView({ behavior: 'smooth' });
+          }
+        });
+      }, 1200);
     }
-  }catch(err){console.error(err);}
+  } catch(err) { console.error(err); }
 }
-function renderNotifications(){
-  const list=document.getElementById('notifList'), badge=document.getElementById('notifBadge'), bell=document.getElementById('notifBell');
-  const uc=notifData.filter(n=>n.unread).length;
-  if(uc>0){badge.textContent=uc>9?'9+':uc;badge.style.display='flex';bell.classList.add('has-notif');}
-  else{badge.style.display='none';bell.classList.remove('has-notif');}
-  if(!notifData.length){list.innerHTML='<div class="notif-empty">🎉 ไม่มีการแจ้งเตือนใหม่</div>';return;}
-  const im={'ตรวจแล้ว':{icon:'✅',cls:'notif-approved',title:'ตรวจแล้ว'},'รอแก้ไข':{icon:'🔍',cls:'notif-revise',title:'ขอให้แก้ไข'}};
-  list.innerHTML=notifData.map(n=>{const m=im[n.status]||{icon:'📋',cls:'notif-pending',title:n.status};
-    return `<div class="notif-item ${n.unread?'unread':''}" onclick="markRead('${n.id}')">
-      ${n.unread?'<div class="notif-dot"></div>':'<div style="width:7px;flex-shrink:0"></div>'}
+function renderNotifications() {
+  const list = document.getElementById('notifList'), badge = document.getElementById('notifBadge'), bell = document.getElementById('notifBell');
+  const uc = notifData.filter(n => n.unread).length;
+  if (uc > 0) { badge.textContent = uc > 9 ? '9+' : uc; badge.style.display = 'flex'; bell.classList.add('has-notif'); }
+  else { badge.style.display = 'none'; bell.classList.remove('has-notif'); }
+  if (!notifData.length) { list.innerHTML = '<div class="notif-empty">🎉 ไม่มีการแจ้งเตือนใหม่</div>'; return; }
+  const im = { 'ตรวจแล้ว': { icon: '✅', cls: 'notif-approved', title: 'ตรวจแล้ว' }, 'รอแก้ไข': { icon: '🔍', cls: 'notif-revise', title: 'ขอให้แก้ไข' } };
+  list.innerHTML = notifData.map(n => {
+    const m = im[n.status] || { icon: '📋', cls: 'notif-pending', title: n.status };
+    return `<div class="notif-item ${n.unread ? 'unread' : ''}" onclick="markRead('${n.id}')">
+      ${n.unread ? '<div class="notif-dot"></div>' : '<div style="width:7px;flex-shrink:0"></div>'}
       <div class="notif-icon-wrap ${m.cls}">${m.icon}</div>
       <div class="notif-content">
-        <div class="notif-title">แผนการสอน${n.subject?' — '+n.subject:''} ${m.title}</div>
-        <div class="notif-desc">ระดับชั้น: ${n.grade||'-'}${n.comment?`<br>💬 <b>ความคิดเห็น:</b> ${n.comment}`:''}</div>
-        <div class="notif-time"><i class="fas fa-clock" style="font-size:10px"></i> ${n.dateTime||'-'}</div>
-      </div></div>`;}).join('');
+        <div class="notif-title">แผนการสอน${n.subject ? ' — ' + n.subject : ''} ${m.title}</div>
+        <div class="notif-desc">ระดับชั้น: ${n.grade || '-'}${n.comment ? `<br>💬 <b>ความคิดเห็น:</b> ${n.comment}` : ''}</div>
+        <div class="notif-time"><i class="fas fa-clock" style="font-size:10px"></i> ${n.dateTime || '-'}</div>
+      </div></div>`;
+  }).join('');
 }
-function markRead(id){
-  const k='notif_read_'+currentUser.username, ids=JSON.parse(localStorage.getItem(k)||'[]');
-  if(!ids.includes(id))ids.push(id); localStorage.setItem(k,JSON.stringify(ids));
-  notifData=notifData.map(n=>n.id===id?{...n,unread:false}:n); renderNotifications();
+function markRead(id) {
+  const k = 'notif_read_' + currentUser.username, ids = JSON.parse(localStorage.getItem(k) || '[]');
+  if (!ids.includes(id)) ids.push(id); localStorage.setItem(k, JSON.stringify(ids));
+  notifData = notifData.map(n => n.id === id ? { ...n, unread: false } : n); renderNotifications();
 }
-function markAllRead(){
-  const k='notif_read_'+currentUser.username;
-  localStorage.setItem(k,JSON.stringify(notifData.map(n=>n.id)));
-  notifData=notifData.map(n=>({...n,unread:false})); renderNotifications();
+function markAllRead() {
+  const k = 'notif_read_' + currentUser.username;
+  localStorage.setItem(k, JSON.stringify(notifData.map(n => n.id)));
+  notifData = notifData.map(n => ({ ...n, unread: false })); renderNotifications();
   document.getElementById('notifPanel').classList.remove('open');
 }
 
-// ===== ADMIN =====
-let allAdminRows=[];
-async function loadAdminData(){
-  document.getElementById('adminTableBody').innerHTML='<tr class="loading-row"><td colspan="11">⏳ กำลังโหลดข้อมูล...</td></tr>';
-  try{
-    const data=await gasGet({action:'getStats'}); if(!data.success)throw new Error(data.error||'โหลดไม่สำเร็จ');
-    allAdminRows=(data.rows||[]).map((r,i)=>({index:i,data:r}));
-    filterAdminTable(); document.getElementById('adminRowCount').textContent=allAdminRows.length+' รายการ';
-  }catch(err){document.getElementById('adminTableBody').innerHTML=`<tr class="loading-row"><td colspan="11">⚠️ ${err.message}</td></tr>`;}
+// =====================================================================
+// ADMIN
+// =====================================================================
+let allAdminRows = [];
+async function loadAdminData() {
+  document.getElementById('adminTableBody').innerHTML = '<tr class="loading-row"><td colspan="11">⏳ กำลังโหลดข้อมูล...</td></tr>';
+  try {
+    const data = await gasGet({ action: 'getStats' }); if (!data.success) throw new Error(data.error || 'โหลดไม่สำเร็จ');
+    allAdminRows = (data.rows || []).map((r, i) => ({ index: i, data: r }));
+    filterAdminTable(); document.getElementById('adminRowCount').textContent = allAdminRows.length + ' รายการ';
+  } catch(err) {
+    document.getElementById('adminTableBody').innerHTML = `<tr class="loading-row"><td colspan="11">⚠️ ${err.message}</td></tr>`;
+  }
 }
-function filterAdminTable(){
-  const s=(document.getElementById('adminSearch').value||'').toLowerCase();
-  const sf=document.getElementById('adminFilterStatus').value, gf=document.getElementById('adminFilterGrade').value;
-  const filtered=allAdminRows.filter(({data:r})=>{
-    const ms=!s||(r[1]||'').toLowerCase().includes(s)||(r[2]||'').toLowerCase().includes(s)||(r[3]||'').toLowerCase().includes(s);
-    return ms&&(!sf||(r[7]||'รอตรวจ')===sf)&&(!gf||r[3]===gf);
+function filterAdminTable() {
+  const s  = (document.getElementById('adminSearch').value || '').toLowerCase();
+  const sf = document.getElementById('adminFilterStatus').value;
+  const gf = document.getElementById('adminFilterGrade').value;
+  const filtered = allAdminRows.filter(({ data: r }) => {
+    const ms = !s || (r[1]||'').toLowerCase().includes(s) || (r[2]||'').toLowerCase().includes(s) || (r[3]||'').toLowerCase().includes(s);
+    return ms && (!sf || (r[7] || 'รอตรวจ') === sf) && (!gf || r[3] === gf);
   });
-  renderAdminTable(filtered); document.getElementById('adminRowCount').textContent=filtered.length+' รายการ';
+  renderAdminTable(filtered); document.getElementById('adminRowCount').textContent = filtered.length + ' รายการ';
 }
-function renderAdminTable(rows){
-  if(!rows.length){document.getElementById('adminTableBody').innerHTML='<tr class="loading-row"><td colspan="11">📭 ไม่พบข้อมูล</td></tr>';return;}
-  document.getElementById('adminTableBody').innerHTML=rows.map(({index,data:r},i)=>{
-    const st=r[7]||'รอตรวจ', cm=r[9]||'', fu=r[8]||'', rn=index+1;
-    const fb=fu?`<a href="${fu}" target="_blank" class="file-link"><i class="fas fa-file-alt"></i> เปิดไฟล์</a>`:`<span style="color:var(--text-light);font-size:12px">ไม่มีไฟล์</span>`;
+function renderAdminTable(rows) {
+  if (!rows.length) { document.getElementById('adminTableBody').innerHTML = '<tr class="loading-row"><td colspan="11">📭 ไม่พบข้อมูล</td></tr>'; return; }
+  document.getElementById('adminTableBody').innerHTML = rows.map(({ index, data: r }, i) => {
+    const st = r[7] || 'รอตรวจ', cm = r[9] || '', fu = r[8] || '', rn = index + 1;
+    const fb = fu ? `<a href="${fu}" target="_blank" class="file-link"><i class="fas fa-file-alt"></i> เปิดไฟล์</a>`
+                  : `<span style="color:var(--text-light);font-size:12px">ไม่มีไฟล์</span>`;
     return `<tr id="adminRow_${index}"><td style="font-weight:600;color:var(--text-light)">${i+1}</td>
       <td style="white-space:nowrap;font-size:12px">${r[0]||'-'}</td><td style="font-weight:500">${r[1]||'-'}</td>
       <td>${r[2]||'-'}</td><td><span class="badge badge-blue" style="font-size:11px">${r[3]||'-'}</span></td>
       <td style="font-size:12px">${r[4]||'-'}</td><td style="font-size:12px">${r[5]||'-'}</td>
       <td>${fb}</td>
       <td><select class="admin-status-select" id="status_${index}" onchange="highlightRow(${index})">
-        <option value="รอตรวจ" ${st==='รอตรวจ'?'selected':''}>⏳ รอตรวจ</option>
+        <option value="รอตรวจ"  ${st==='รอตรวจ' ?'selected':''}>⏳ รอตรวจ</option>
         <option value="รอแก้ไข" ${st==='รอแก้ไข'?'selected':''}>🔍 รอแก้ไข</option>
-        <option value="ตรวจแล้ว" ${st==='ตรวจแล้ว'?'selected':''}>✅ ตรวจแล้ว</option>
+        <option value="ตรวจแล้ว"${st==='ตรวจแล้ว'?'selected':''}>✅ ตรวจแล้ว</option>
       </select></td>
       <td><textarea class="admin-comment-input" id="comment_${index}" rows="2" placeholder="พิมพ์ความคิดเห็น..." oninput="highlightRow(${index})">${cm}</textarea></td>
       <td><button class="btn-save-row" id="saveBtn_${index}" onclick="saveAdminRow(${index},${rn})"><i class="fas fa-save"></i> บันทึก</button></td>
     </tr>`;
   }).join('');
 }
-function highlightRow(i){const r=document.getElementById('adminRow_'+i);if(r)r.style.background='rgba(226,204,255,.2)';}
-async function saveAdminRow(index,rowNum){
-  const ns=document.getElementById('status_'+index).value, nc=document.getElementById('comment_'+index).value;
-  const btn=document.getElementById('saveBtn_'+index);
-  btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
-  try{
-    await gasPost({action:'updateRow',rowNum:rowNum+1,status:ns,comment:nc});
-    allAdminRows[index].data[7]=ns; allAdminRows[index].data[9]=nc;
-    btn.innerHTML='<i class="fas fa-check"></i> บันทึกแล้ว'; btn.style.background='linear-gradient(135deg,#6DCBA8,#45B393)';
-    const row=document.getElementById('adminRow_'+index);
-    if(row){row.classList.add('saved-flash');row.style.background='';}
-    Swal.mixin({toast:true,position:'top-end',showConfirmButton:false,timer:2500,timerProgressBar:true})
-      .fire({icon:'success',title:`✅ บันทึกสถานะ "${ns}" เรียบร้อย`});
-    setTimeout(()=>{btn.innerHTML='<i class="fas fa-save"></i> บันทึก';btn.style.background='';btn.disabled=false;},3000);
-    setTimeout(()=>loadStats(),1000);
-  }catch(err){
-    btn.innerHTML='<i class="fas fa-save"></i> บันทึก'; btn.disabled=false;
-    Swal.fire({icon:'error',title:'❌ บันทึกไม่สำเร็จ',text:err.message,confirmButtonColor:'#FF85A1'});
+function highlightRow(i) { const r = document.getElementById('adminRow_' + i); if (r) r.style.background = 'rgba(226,204,255,.2)'; }
+async function saveAdminRow(index, rowNum) {
+  const ns  = document.getElementById('status_'  + index).value;
+  const nc  = document.getElementById('comment_' + index).value;
+  const btn = document.getElementById('saveBtn_' + index);
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> กำลังบันทึก...';
+  try {
+    await gasPost({ action: 'updateRow', rowNum: rowNum + 1, status: ns, comment: nc });
+    allAdminRows[index].data[7] = ns; allAdminRows[index].data[9] = nc;
+    btn.innerHTML = '<i class="fas fa-check"></i> บันทึกแล้ว'; btn.style.background = 'linear-gradient(135deg,#6DCBA8,#45B393)';
+    const row = document.getElementById('adminRow_' + index);
+    if (row) { row.classList.add('saved-flash'); row.style.background = ''; }
+    Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500, timerProgressBar: true })
+      .fire({ icon: 'success', title: `✅ บันทึกสถานะ "${ns}" เรียบร้อย` });
+    setTimeout(() => { btn.innerHTML = '<i class="fas fa-save"></i> บันทึก'; btn.style.background = ''; btn.disabled = false; }, 3000);
+    setTimeout(() => loadStats(), 2000);
+  } catch(err) {
+    btn.innerHTML = '<i class="fas fa-save"></i> บันทึก'; btn.disabled = false;
+    Swal.fire({ icon: 'error', title: '❌ บันทึกไม่สำเร็จ', text: err.message, confirmButtonColor: '#FF85A1' });
   }
 }
 
-// ===== INIT =====
-window.addEventListener('load',()=>{
+// =====================================================================
+// INIT
+// =====================================================================
+window.addEventListener('load', () => {
   initDropZone();
-  setInterval(()=>{if(currentUser){loadStats();if(currentUser.role==='teacher')loadNotifications();}},60000);
+  setInterval(() => {
+    if (currentUser) { loadStats(); if (currentUser.role === 'teacher') loadNotifications(); }
+  }, 60000);
   checkSession();
 });
 </script>
